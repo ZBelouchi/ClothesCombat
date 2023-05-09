@@ -1,0 +1,84 @@
+@use './partials/breakpoints' as *
+@use './partials/mixins' as *
+@use './partials/variables' as *
+    
+*, *::before, *::after
+    box-sizing: border-box
+    margin: 0
+    font-size: 18px
+    // color: white
+
+html
+    background: #dfdfdf
+    padding: 1em
+
+img
+    max-width: 100%
+ul
+    padding: 0
+    list-style: none
+label
+    // display: block
+.players
+    display: flex
+    width: 100vw
+    flex-wrap: wrap
+    border: 2px solid black
+.player
+    border: 2px solid navy
+    width: fit-content
+    margin: 0.5em
+    padding: 1em
+
+canvas
+    border: 2px solid black
+    display: inline-block
+.color, .width, .background 
+    width: 2.5em
+    height: 2.5em
+    display: inline-block
+    border: 2px solid black
+.flex
+    display: flex
+
+
+.shirt
+    // outline: 2px solid white
+    position: relative
+    width: 600px
+    height: 504.2px
+    &__base
+        // outline: 2px solid teal
+        position: absolute
+        width: 100%
+        height: 100%
+    &__assets
+        // outline: 2px solid blue
+        position: absolute
+        width: 100%
+        height: 100%
+.design
+    // outline: 2px solid pink
+    width: 53.5%
+    margin-left: 22%
+    margin-top: 10%
+    // background: green
+    aspect-ratio: 1/1
+    position: relative
+    &__layer
+        // outline: 2px solid red
+        @include center
+        width: 100%
+        height: 100%
+.slogan
+    // outline: 2px solid lime
+    width: fit-content
+    font-size: 2.5rem
+    margin: auto
+
+.winners
+    display: flex
+    flex-wrap: wrap    
+.winner
+    border: 2px solid gray
+    margin: 1em

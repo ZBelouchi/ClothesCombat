@@ -1,0 +1,39 @@
+{
+  "name": "clothescombat",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "server": "node --experimental-modules server.mjs",
+    "session": "vite --port 5173",
+    "client1": "vite --port 5174",
+    "client2": "vite --port 5175",
+    "client3": "vite --port 5176",
+    "client4": "vite --port 5177",
+    "client5": "vite --port 5178",
+    "client6": "vite --port 5179",
+    "client7": "vite --port 5180",
+    "client8": "vite --port 5181",
+    "client9": "vite --port 5182",
+    "client10": "vite --port 5183",
+    "client11": "vite --port 5184",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.11.1",
+    "sass": "^1.62.1",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.24",
+    "@types/react-dom": "^18.0.8",
+    "@vitejs/plugin-react": "^2.2.0",
+    "vite": "^3.2.3"
+  }
+}
