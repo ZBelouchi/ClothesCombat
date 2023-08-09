@@ -1,0 +1,142 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  font-size: 18px;
+}
+
+html {
+  background: #dfdfdf;
+  padding: 1em;
+}
+
+img {
+  max-width: 100%;
+}
+
+ul {
+  padding: 0;
+  list-style: none;
+}
+
+.collapse-button {
+  display: block;
+  width: 100%;
+}
+
+.collapse-content.collapsed {
+  display: none;
+}
+
+.collapsed-content.expanded {
+  display: block;
+}
+
+.players {
+  display: flex;
+  width: 90%;
+  flex-wrap: wrap;
+  border: 2px solid black;
+}
+.players--scroll {
+  overflow-x: scroll;
+}
+
+.player {
+  border: 2px solid navy;
+  width: fit-content;
+  min-width: 200px;
+  margin: 0.5em;
+  padding: 1em;
+}
+
+canvas {
+  border: 2px solid black;
+  display: inline-block;
+}
+
+.color, .width, .background {
+  width: 2.5em;
+  height: 2.5em;
+  display: inline-block;
+  border: 2px solid black;
+}
+
+.flex {
+  display: flex;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.shirt {
+  position: relative;
+  width: 600px;
+  height: 504.18px;
+  background-color: attr(data-bkg);
+}
+.shirt__color {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  width: 600px;
+  height: 504.18px;
+  -webkit-mask-image: url("../assets/images/shirt-mask.png");
+  -webkit-mask-size: contain;
+  -webkit-mask-position: center;
+  mask-image: url("../assets/images/shirt-mask.png");
+  mask-size: contain;
+  mask-posit-webkit-mask-position: center;
+}
+.shirt__base {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+.shirt__assets {
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  width: 53.5%;
+  height: 77%;
+  bottom: 5.1%;
+  left: 22.2%;
+}
+
+.design {
+  outline: 2px solid navy;
+  aspect-ratio: 1/1;
+  position: relative;
+}
+.design__layer {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  width: 100%;
+  height: 100%;
+}
+
+.slogan {
+  outline: 2px solid purple;
+  width: 100%;
+  max-height: 17%;
+  text-transform: uppercase;
+  font-family: impact;
+  font-size: calc(-0.3130434783px * var(--chars) + 39.9130434783px);
+  text-align: center;
+}
+
+.winners {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.winner {
+  border: 2px solid gray;
+  margin: 1em;
+}
+
+/*# sourceMappingURL=index.css.map */

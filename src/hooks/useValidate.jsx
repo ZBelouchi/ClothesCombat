@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+
 //TODO: add catch for is server cannot be reached for so long, rn it just will wait until a success or failure
 
 export default function useValidate({session=undefined, player=undefined, spectator=undefined, strict=true, doValidation=true, onInvalid=((res)=>{}), onValid=((res)=>{}), onPending=(()=>{}), dependencies=[]}) {
@@ -13,7 +14,7 @@ export default function useValidate({session=undefined, player=undefined, specta
             () => {
                 if (!doValidation) return
                 onPending()
-                fetch(`http://localhost:3000/validate?strict=${strict}&${query}`)
+                fetch(`${import.meta.env.VITE_SERVER_URL}/validate?strict=${strict}&${query}`)
                     .then(response => response.json())
                     .then(res => {
                         if (res.success) {
@@ -31,7 +32,7 @@ export default function useValidate({session=undefined, player=undefined, specta
         return () => {
             clearInterval(interval)
         }
-    }, session, player, spectator, dependencies)
+    }, [session, player, spectator, dependencies])
 
     return report
 }

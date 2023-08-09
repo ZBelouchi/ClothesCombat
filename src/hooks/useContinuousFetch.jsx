@@ -5,17 +5,18 @@ export default function useContinuousFetch(url, {options={}, parser=(res => res)
     const hasRun = useRef(!runAtLeastOnce)
     const paused = useRef(isPaused)
 
-    const set = ({value=initial, pause=false}) => {
-        setValue(value)
+    const set = ({newValue=initial, pause=false}) => {
+        // console.log('FETCH GOT', newValue);
+        setValue(newValue)
         if (pause) {
             paused.current = true
         }
     }
-
     useEffect(() => {
         paused.current = isPaused
     }, [isPaused])
 
+    // console.log("FETCH HAS", value);
     useEffect(() => {
         const interval = setInterval(
             () => {
@@ -43,18 +44,18 @@ export default function useContinuousFetch(url, {options={}, parser=(res => res)
 /* useContinuousFetch - repeatedly fetch a url and cache the returned value between fetches
 
     // basic get request
-    const [playerList, setPlayerList] = useContinuousFetch('http://localhost:3000/players')
+    const [playerList, setPlayerList] = useContinuousFetch('${import.meta.env.VITE_SERVER_URL}/players')
 
     // returns fetched value
     playerList
 
     // and function to set new value manually
-    setPlayerList({value: 'new'})   // value sets new value (if not given, will reset to initial value)
-    setPlayerList({pause: true})    // flag for pausing the fetch after setting to new value (is false by default)
+    setPlayerList({newValue: 'new'})   // value sets new value (if not given, will reset to initial value)
+    setPlayerList({pause: true})       // flag for pausing the fetch after setting to new value (is false by default)
 
 
     // pass in  destructured options for the request an it's behavior
-    const [playerList, setPlayerList] = useContinuousFetch('http://localhost:3000/players', {
+    const [playerList, setPlayerList] = useContinuousFetch('${import.meta.env.VITE_SERVER_URL}/players', {
         options: {                                              // fetch options
             method: 'GET', 
             headers: {'Content-Type': 'application/json'}
@@ -74,7 +75,7 @@ export default function useContinuousFetch(url, {options={}, parser=(res => res)
 
 
     // without storing the value or set function, the fetch will still run it's request action
-    useContinuousFetch('http://localhost:3000/player', {
+    useContinuousFetch('${import.meta.env.VITE_SERVER_URL}/player', {
         options: {
             method: 'POST', 
             headers: {'Content-Type': 'application/json'}, 

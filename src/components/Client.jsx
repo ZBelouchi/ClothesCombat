@@ -6,48 +6,31 @@ import useContinuousFetch from '../hooks/useContinuousFetch'
 
 import Form from './Form'
 import Shirt from './Shirt'
-
-// Join
-    // TODO: add check on mount for existing player/session ids, 
-        // if present and session id matches current: prompt for continuing to waiting or remaking player (clear player from storage and on server to start over at join prompt) 
-        // otherwise announce that session has expired and clear data, then re-prompt to join
-    // TODO: add some indication of if the server cannot be reached (either idly or on submit)
-    // TODO: add actual icon selection
-        // and add tracking for players that have already selected icons (maybe move icon selection to waiting component?)
-    // TODO: add check for if game is currently being played
-        // if so check if local player id is a player in the game
-            // if so then nav to the game with prompt
-            // otherwise reset localstorage and prompt to join as audience member
-        // otherwise prompt to join as player
-    // CLEAN: make form component better so warnings aren't showing up
-// Round
-    // TODO: also add check for if game is full along side if a game is in progress. if a game has a max limit of players then it cannot be joined as a player, only as audience
-    // TODO: setup game phases
-        // ---shirt drawing
-        // ---slogan writing
-        // ---combining
-        // ---voting
-        // ---transition between rounds
-        // ---final round
-        //  > results
-            // link to downloads?
-            // exit
-            // more???
-    // TODO: check (continuous) for round status (if timer has finished)
-    // TODO: check (continuous) for % of players that responded 
-        // if finished OR if all players have responded: move to next phase
-        // phases: shirt > slogans > combining > voting >
-        // if all phases have been done: move to next round and begin phases from top
-    //TODO: change mouse to pencil or brush or something when hovering over canvas
-    //TODO: add continuous session/player checks like in waiting
-    //TODO: save drawing strokes/other play stuff in session storage in case of refresh
-    //CLEAN: editMode
-    //TODO: add enter button functionality
-    //TODO: prevent empty canvas by only using eraser strokes or clear
-    //TODO: prune frames from design if there's too many to send reasonably (like in extreme cases where frames take up 3 digit mbs)
-    //BUG: sometimes there's a prop reading error or something that prevents drawings being sent
-    //TODO: now that I caved and added ids to objects, go back and clean up the code I used to get ids the hard way
-    //BUG: (in <Voting/>) refreshing during presentation of winners causes it to get stuck in loading (doesn't affect seamless gameplay, but should fix so if it refreshes for some reason it wont break)
+import useObject from '../hooks/useObject'
+import IMAGES from '../assets/images'
+const DEBUG_MODE = Number(import.meta.env.VITE_DEBUG_MODE)
+/* TODOS
+    Join
+        TODO: add some indication of if the server cannot be reached (either idly or on submit)
+        TODO: add requirements to join form (both name and phrase must have at least 1 character)
+        TODO: prevent additional submissions during processing; e.g. go to loading state while awaiting response
+    Round
+        TODO: add shirt archives/download component and link to it in results
+        TODO: change mouse icon to pencil or brush or something when hovering over canvas
+        TODO: save drawing strokes/other play stuff in session storage in case of refresh
+        CLEAN: editMode
+        TODO: prevent empty canvas by only using eraser strokes or clear
+        TODO: prune frames from design if there's too many to send reasonably (like in extreme cases where frames take up 3 digit mbs)
+        BUG: sometimes there's a prop reading error or something that prevents drawings being sent
+        CLEAN: now that I caved and added ids to objects, go back and clean up the code I used to get ids the hard way
+        BUG: (in <Voting/>) refreshing during presentation of winners causes it to get stuck in loading (doesn't affect seamless gameplay, but should fix so if it refreshes for some reason it wont break)
+        TODO: prevent submitting a response in the time between rounds, as it may submit to the next phase (i.e. submitting a slogan after the last 4th will count as 1 submission for the combining phase and lot let you make a shirt)
+        BUG: fix repeating animation in designs, should only play once
+        CLEAN: add this name key system (iconForm>iconData) to other parts of the project, it'll clean things up a lot
+        TODO: stop spectators from voting when current vote has concluded and it's showing who had more votes*
+        TODO: add character limit (70) to slogans
+        CLEAN: add useReduce hook to combining phase for cleaner code
+*/
 
 export default function Client() {
     const nav = useNavigate()
@@ -58,10 +41,15 @@ export default function Client() {
         spectator: localStorage.getItem('spectatorUUID')
     })
 
-    //DEBUG-set port 5173 to /session on mount, it keeps resetting to root on server refresh somehow
+    //DEBUG: automatically route session and server visualizer back after refresh
     useEffect(() => {
-        if (localStorage.getItem('DEBUG-initRoute') === 'session') {
-            nav('/session')
+        switch (localStorage.getItem('DEBUG-initRoute')) {
+            case 'session':         // 5173
+                nav('/session')
+                break
+            case 'server':          // 5172
+                nav('/server')
+                break
         }
     }, [])
 
@@ -70,10 +58,10 @@ export default function Client() {
         if (inProgress) {
             // if game is in progress, check for existing id to rejoin
             if (session && player) {
-                console.log("resumePlayer()")
+                // console.log("resumePlayer()")
                 return <Round />
             } else if (session && spectator) {
-                console.log("resumeSpectator()")
+                // console.log("resumeSpectator()")
                 return <Audience />
             } else {
                 // if no valid id is found, join as spectator
@@ -82,7 +70,7 @@ export default function Client() {
                     <>
                         <p>a game is already in progress</p>
                         <button onClick={() => {
-                            fetch(`http://localhost:3000/spectator`, {
+                            fetch(`${import.meta.env.VITE_SERVER_URL}/spectator`, {
                                 method: 'POST',
                                 headers: {'Content-Type': 'application/json'}
                             })
@@ -91,7 +79,11 @@ export default function Client() {
                                     console.log(res)
 
                                     // add spectator uuids to storage for later
-                                    localStorage.removeItem('playerUUID')
+                                    if (!DEBUG_MODE) {
+                                        localStorage.removeItem('playerUUID')
+                                    } else {
+                                        console.log("DEBUG MODE: remove playerUUID")
+                                    }
                                     localStorage.setItem('spectatorUUID', res.spectatorId)
                                     localStorage.setItem('sessionUUID', res.sessionId)
                                     // navigate to round as spectator
@@ -104,97 +96,131 @@ export default function Client() {
             }
         } else {
             if (session && player) {
-                console.log("resumePlayer()")
-                return 'waiting for game to being'
+                // console.log("resumePlayer()")
+                return <IconForm />
             }
-            return <PlayerForm />
+            return (
+                <>
+                    <PlayerForm />
+                    <button onClick={() => nav('./session')}>Host Session</button>
+                    <button onClick={() => nav('./server')}>View Data (DEBUG)</button>
+                </>
+            )
         }
     }
 }
 
 function PlayerForm() {
-    const nav = useNavigate()
-    const [formData, setFormData] = useState()
-
-    const handleSubmit = (data) => {
-        // TODO: go to loading state while awaiting response to prevent additional submissions during processing
-        fetch('http://localhost:3000/player', {
+    const {object: formData, update: updateFormData} = useObject({
+        name: '',
+        phrase: ''
+    })
+    
+    const handleSubmit = e => {
+        e.preventDefault()
+        console.log(formData);
+        fetch(`${import.meta.env.VITE_SERVER_URL}/player`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                name: data.name, 
-                icon: data.icon, 
-                phrase: data.phrase
+                name: formData.name, 
+                phrase: formData.phrase,
+                icon: null 
             })
         })
-        .then(response => {
-            // internal error handling
-            if (!response.ok) {
-                response.json()
-                    .then(res => {
-                        throw new Error(res.message)
-                    })
-                    .catch(err => alert(err.message))
-            }
-            return response.json()
-        })
-        .then(res => {
-            // add player uuids) to storage for later
-            localStorage.removeItem('spectatorUUID')
-            localStorage.setItem('playerUUID', res.playerId)
-            localStorage.setItem('sessionUUID', res.sessionId)
-            // navigate to round as player
-            // nav('./round')
-        })
-        .catch(err => console.log("FETCH ERROR:", err.message))
+            .then(response => {
+                // internal error handling
+                if (!response.ok) {
+                    response.json()
+                        .then(res => {
+                            throw new Error(res.message)
+                        })
+                        .catch(err => alert(err.message))
+                }
+                return response.json()
+            })
+            .then(res => {
+                // add player uuids) to storage for later
+                if (!DEBUG_MODE) {
+                    localStorage.removeItem('spectatorUUID')
+                } else {
+                    console.log("DEBUG MODE: remove spectatorUUID")
+                }
+                localStorage.setItem('playerUUID', res.playerId)
+                localStorage.setItem('sessionUUID', res.sessionId)
+            })
+            .catch(err => console.log("FETCH ERROR:", err.message))
     }
 
     return (
-        <Form dataSetter={setFormData} form={{
-            inputs: [
-                {type: 'text', id: 'name',
-                    label: 'Name: ',
-                },
-                {type: 'text', id: 'phrase',
-                    label: 'Victory Phrase: ',
-                },
-                {type: 'radio', id: 'icon',
-                    options: [
-                        {value: 'icon_file_1', label: 'icon 1'},
-                        {value: 'icon_file_2', label: 'icon 2'},
-                        {value: 'icon_file_3', label: 'icon 3'},
-                        {value: 'icon_file_4', label: 'icon 4'},
-                        {value: 'icon_file_5', label: 'icon 5'},
-                        {value: 'icon_file_6', label: 'icon 6'},
-                        {value: 'icon_file_7', label: 'icon 7'},
-                        {value: 'icon_file_8', label: 'icon 8'},
-                        {value: 'icon_file_9', label: 'icon 9'},
-                        {value: 'icon_file_10', label: 'icon 10'},
-                        {value: 'icon_file_11', label: 'icon 11'},
-                        {value: 'icon_file_12', label: 'icon 12'},
-                        {value: 'icon_file_13', label: 'icon 13'},
-                        {value: 'icon_file_14', label: 'icon 14'},
-                        {value: 'icon_file_15', label: 'icon 15'},
-                        {value: 'icon_file_16', label: 'icon 16'},
-                    ],
-                    initial: 'icon_file_1'
-                },
-                {type: 'submit',
-                    value: 'Join',
-                    onSubmit: () => handleSubmit(formData)
-                }
-            ]
-        }}/>
+        <form onSubmit={handleSubmit}>
+            <label>
+                Name:
+                <input type="text" value={formData.name} onChange={e => updateFormData({name: e.target.value})} autoFocus/>            
+            </label>
+            <label>
+                Victory Phrase:
+                <input type="text" value={formData.phrase} onChange={e => updateFormData({phrase: e.target.value})}/>            
+            </label>
+            <input type="submit" value="Join" />
+        </form>
     )
 }
 
-// TO CRUNCH:
+function IconForm() {
+    const [iconData, setIconData] = useContinuousFetch(`${import.meta.env.VITE_SERVER_URL}/icons`, {
+        parser: res => ({
+            icons: res.icons,
+            nameKey: res.nameKey        
+        }),
+        refreshDelay: 500,
+        initial: {icons: [], nameKey: {huh: 'better not see this'}},
+        // isPaused: true
+    })
+
+    if (iconData.icons.length === 0) return 'loading icons'
+    
+    return (
+        <div className='grid'>
+            {
+                iconData.icons.map((icon, index) => (
+                    <button 
+                        style={{color: 'black', backgroundColor: icon !== null ? 'gray' : 'initial'}}
+                        disabled={icon !== null}
+                        onClick={() => {
+                            fetch(`${import.meta.env.VITE_SERVER_URL}/icon/${index}`, {
+                                method: 'PATCH',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({
+                                    player: localStorage.getItem('playerUUID')
+                                })
+                            })
+                                .then(response => response.json())
+                                .then(res => {
+                                    setIconData({
+                                        newValue: {
+                                            icons: res.icons,
+                                            nameKey: res.nameKey
+                                        }
+                                    })
+                                })
+                                .catch(err => console.log(err))
+                        }}
+                    >
+                        <img src={IMAGES.icons[index]} alt="" className='icon--med' />
+                        <p>{index}: {iconData.nameKey[iconData.icons[index]]}</p>
+                    </button>
+                ))
+            }
+        </div>
+    )
+}
 
 function Round() {
     const nav = useNavigate()
-    const [gameData, setGameData] = useContinuousFetch('http://localhost:3000/all', {
+    const [gameData, setGameData] = useContinuousFetch(`${import.meta.env.VITE_SERVER_URL}/all`, {
         parser: (res => {
             return {
                 id: res.sessionId,
@@ -212,9 +238,15 @@ function Round() {
         session: localStorage.getItem('sessionUUID'),
         onInvalid: (() => {
             if (gameData === null) return
-            localStorage.removeItem('sessionUUID')
-            localStorage.removeItem('playerUUID')
-            localStorage.removeItem('spectatorUUID')
+            if (!DEBUG_MODE) {
+                localStorage.removeItem('sessionUUID')
+                localStorage.removeItem('playerUUID')
+                localStorage.removeItem('spectatorUUID')
+            } else {
+                console.log("DEBUG MODE: remove sessionUUID")
+                console.log("DEBUG MODE: remove playerUUID")
+                console.log("DEBUG MODE: remove spectatorUUID")
+            }
             nav('..')
         }),
         dependencies: [gameData]
@@ -509,11 +541,11 @@ function Canvas() {
                         const bodyContent = JSON.stringify({
                             creatorId: localStorage.getItem('playerUUID'),
                             backgroundColor: backgroundColor,
-                            frames: frames.reverse()
+                            frames: frames
                         })
                         console.log(bodyContent.length)
 
-                        fetch('http://localhost:3000/design', {
+                        fetch(`${import.meta.env.VITE_SERVER_URL}/design`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -556,7 +588,7 @@ function Slogan() {
     const handleSubmit = e => {
         e.preventDefault()
         inputRef.current.focus()
-        fetch('http://localhost:3000/slogan', {
+        fetch(`${import.meta.env.VITE_SERVER_URL}/slogan`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -606,9 +638,10 @@ function Combining({round}) {
     const [slogans, setSlogans] = useState([])
     const [designSelect, setDesignSelect] = useState(0)
     const [sloganSelect, setSloganSelect] = useState(0)
+    const shirtMethods = useRef()
 
     useEffect(() => {
-        fetch(`http://localhost:3000/parts/${localStorage.getItem('playerUUID')}`)
+        fetch(`${import.meta.env.VITE_SERVER_URL}/parts/${localStorage.getItem('playerUUID')}`)
             .then(response => response.json())
             .then(res => {
                 setDesigns(res.designs)
@@ -621,9 +654,22 @@ function Combining({round}) {
     }, [designSelect])
     
     if (designs.length === 0) return 'loading...'
+    
     return (
         <>
-            <Shirt design={designs[designSelect]} slogan={slogans[sloganSelect]} animated={false}/>
+            <Shirt 
+                design={designs[designSelect]} 
+                slogan={slogans[sloganSelect]} 
+                animated={false} 
+                ref={shirtMethods}
+                initialData={{
+                    shirtRendered: true,
+                    shirtVisible: true,
+                    designVisible: true,
+                    sloganVisible: true,
+                    position: 'center'
+                }}
+            />
             <div className="flex">
                 <p>Design</p>
                 <button onClick={() => {
@@ -643,8 +689,8 @@ function Combining({round}) {
                 }}>{">"}</button>
             </div>
             <button onClick={() => {
-                // POST shirt `http://localhost:3000/shirt` body=design, slogan, body
-                fetch(`http://localhost:3000/shirt`, {
+                // POST shirt `${import.meta.env.VITE_SERVER_URL}/shirt` body=design, slogan, body
+                fetch(`${import.meta.env.VITE_SERVER_URL}/shirt`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -667,7 +713,8 @@ function Combining({round}) {
 }
 function Voting({votes, round}) {
     const [hasVoted, setHasVoted] = useState(false)
-    const [candidates, setCandidates] = useContinuousFetch(`http://localhost:3000/shirts?status=${round !== 3 ? 'unused' : 'winner'}&deep=true&amount=2`, {
+    const shirtAnimations = [useRef(), useRef()]
+    const [candidates, setCandidates] = useContinuousFetch(`${import.meta.env.VITE_SERVER_URL}/shirts?status=${round !== 3 ? 'unused' : 'winner'}&deep=true&amount=2`, {
         parser: (res => {
             return res.shirts
         }),
@@ -676,7 +723,7 @@ function Voting({votes, round}) {
     })
 
     const submitVote = (shirt) => {
-        fetch('http://localhost:3000/vote', {
+        fetch(`${import.meta.env.VITE_SERVER_URL}/vote`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -707,7 +754,20 @@ function Voting({votes, round}) {
                         {candidates.map((candidate, index, array) => (
                             <>
                                 <div>
-                                    <Shirt design={candidate.design} slogan={candidate.slogan} animated={true}/>
+                                    {/* <Shirt design={candidate.design} slogan={candidate.slogan} animated={true}/> */}
+                                    <Shirt 
+                                        design={candidate.design} 
+                                        slogan={candidate.slogan} 
+                                        animated={true} 
+                                        ref={shirtAnimations[index]}
+                                        initialData={{
+                                            shirtRendered: true,
+                                            shirtVisible: true,
+                                            designVisible: true,
+                                            sloganVisible: true,
+                                            position: ['leftCenter', 'rightCenter'][index]
+                                        }}
+                                    />
                                     <button onClick={() => submitVote(candidate.shirt.id)}>VOTE</button>
                                 </div>
                                 {index === array.length - 2 &&
@@ -729,8 +789,7 @@ function Results() {
 
 
 function Audience() {
-    const nav = useNavigate()
-    const [gameData, setGameData] = useContinuousFetch('http://localhost:3000/all', {
+    const [gameData, setGameData] = useContinuousFetch(`${import.meta.env.VITE_SERVER_URL}/all`, {
         parser: (res => {
             return {
                 id: res.sessionId,
@@ -748,10 +807,15 @@ function Audience() {
         session: localStorage.getItem('sessionUUID'),
         onInvalid: (() => {
             if (gameData === null) return
-            localStorage.removeItem('sessionUUID')
-            localStorage.removeItem('playerUUID')
-            localStorage.removeItem('spectatorUUID')
-            nav('..')
+            if (!DEBUG_MODE) {
+                localStorage.removeItem('sessionUUID')
+                localStorage.removeItem('playerUUID')
+                localStorage.removeItem('spectatorUUID')
+            } else {
+                console.log("DEBUG MODE: remove sessionUUID")
+                console.log("DEBUG MODE: remove playerUUID")
+                console.log("DEBUG MODE: remove spectatorUUID")
+            }
         }),
         dependencies: [gameData]
     })
@@ -764,65 +828,64 @@ function Audience() {
             {(() => {
                 if (gameData.round === 0) return <Waiting text={"Waiting for game to begin"} />
                 if (gameData.round === 4) return <Results />
-                if (gameData.phase === 4) return <Voting key={gameData.round} votes={gameData.votes || {}} round={gameData.round}/>
+                if (gameData.phase === 4) return <AudienceVoting key={gameData.round} votes={gameData.votes || {}} round={gameData.round}/>
             })()}
         </div>
     )
 }
 
-// function Voting({votes, round}) {
-//     //TODO: stop spectators from voting when current vote has concluded and it's showing who had more votes*
-//     const [hasVoted, setHasVoted] = useState(false)
-//     const [candidates, setCandidates] = useContinuousFetch(`http://localhost:3000/shirts?status=${round !== 3 ? 'unused' : 'winner'}&deep=true&amount=2`, {
-//         parser: (res => {
-//             return res.shirts
-//         }),
-//         onFailure: (err => console.log(err)),
-//         initial: []
-//     })
+function AudienceVoting({votes, round}) {
+    const [hasVoted, setHasVoted] = useState(false)
+    const [candidates, setCandidates] = useContinuousFetch(`${import.meta.env.VITE_SERVER_URL}/shirts?status=${round !== 3 ? 'unused' : 'winner'}&deep=true&amount=2`, {
+        parser: (res => {
+            return res.shirts
+        }),
+        onFailure: (err => console.log(err)),
+        initial: []
+    })
 
-//     const submitVote = (shirt) => {
-//         fetch('http://localhost:3000/vote', {
-//             method: 'POST',
-//             headers: {'Content-Type': 'application/json'},
-//             body: JSON.stringify({
-//                 group: 'audienceVotes',
-//                 id: localStorage.getItem('spectatorUUID'),
-//                 shirt: shirt
-//             })
-//         })
-//             .then(response => response.json())
-//             .then(res => {
-//                 // console.log(res.message)
-//             })
-//             .catch(err => console.log(err))
-//     }
+    const submitVote = (shirt) => {
+        fetch(`${import.meta.env.VITE_SERVER_URL}/vote`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                group: 'audienceVotes',
+                id: localStorage.getItem('spectatorUUID'),
+                shirt: shirt
+            })
+        })
+            .then(response => response.json())
+            .then(res => {
+                // console.log(res.message)
+            })
+            .catch(err => console.log(err))
+    }
 
-//     useEffect(() => {
-//         setHasVoted(Object.keys(votes).includes(localStorage.getItem('spectatorUUID')))
-//     }, [votes])
+    useEffect(() => {
+        setHasVoted(Object.keys(votes).includes(localStorage.getItem('spectatorUUID')))
+    }, [votes])
 
-//     if (Object.keys(candidates).length < 2) return "loading..."
-//     return (
-//         <>
-//             {hasVoted ? 
-//                 (<p>waiting for next vote</p>)
-//                 : 
-//                 (
-//                     <div className="voting flex">
-//                         {candidates.map((candidate, index, array) => (
-//                             <>
-//                                 <div>
-//                                     <Shirt design={candidate.design} slogan={candidate.slogan} animated={true}/>
-//                                     <button onClick={() => submitVote(candidate.shirt.id)}>VOTE</button>
-//                                 </div>
-//                                 {index === array.length - 2 &&
-//                                     <p>VS</p>
-//                                 }
-//                             </>
-//                         ))}
-//                     </div>
-//                 )}
-//         </>
-//     )
-// } (clashes with player ver, commented until crunched)
+    if (Object.keys(candidates).length < 2) return "loading..."
+    return (
+        <>
+            {hasVoted ? 
+                (<p>waiting for next vote</p>)
+                : 
+                (
+                    <div className="voting flex">
+                        {candidates.map((candidate, index, array) => (
+                            <>
+                                <div>
+                                    <Shirt design={candidate.design} slogan={candidate.slogan} animated={true}/>
+                                    <button onClick={() => submitVote(candidate.shirt.id)}>VOTE</button>
+                                </div>
+                                {index === array.length - 2 &&
+                                    <p>VS</p>
+                                }
+                            </>
+                        ))}
+                    </div>
+                )}
+        </>
+    )
+}

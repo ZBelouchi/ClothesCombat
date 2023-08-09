@@ -10,7 +10,9 @@
 
 html
     background: #dfdfdf
+    // background: gray
     padding: 1em
+    // overflow: hidden    //TODO create frame for animations to prevent overflow when elements go out of bounds. for now this can be toggled when needed for testing
 
 img
     max-width: 100%
@@ -19,14 +21,29 @@ ul
     list-style: none
 label
     // display: block
+
+
+.collapse-button
+  display: block
+  width: 100%
+
+.collapse-content.collapsed
+  display: none
+
+.collapsed-content.expanded
+  display: block
+
 .players
     display: flex
-    width: 100vw
+    width: 90%
     flex-wrap: wrap
     border: 2px solid black
+    &--scroll
+        overflow-x: scroll 
 .player
     border: 2px solid navy
     width: fit-content
+    min-width: 200px
     margin: 0.5em
     padding: 1em
 
@@ -40,41 +57,78 @@ canvas
     border: 2px solid black
 .flex
     display: flex
+.grid
+    display: grid
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr))
+
+.invisible
+    // used by shirt component because it doesn't want to rerender style changes when I change a state for some reason
+    opacity: 0 
+
+.icon
+    &--small
+        max-width: 50px
+    &--med
+        max-width: 100px
 
 
-.shirt
-    // outline: 2px solid white
-    position: relative
-    width: 600px
-    height: 504.2px
-    &__base
-        // outline: 2px solid teal
-        position: absolute
-        width: 100%
-        height: 100%
-    &__assets
-        // outline: 2px solid blue
-        position: absolute
-        width: 100%
-        height: 100%
-.design
-    // outline: 2px solid pink
-    width: 53.5%
-    margin-left: 22%
-    margin-top: 10%
-    // background: green
-    aspect-ratio: 1/1
-    position: relative
-    &__layer
-        // outline: 2px solid red
-        @include center
-        width: 100%
-        height: 100%
-.slogan
-    // outline: 2px solid lime
-    width: fit-content
-    font-size: 2.5rem
-    margin: auto
+
+
+
+
+
+// $shirt-width: 600px
+// .shirt
+//     // outline: 2px solid white
+//     position: relative
+//     width: $shirt-width
+//     height: $shirt-width
+//     background-color: attr(data-bkg)
+//     &__color
+//         @include center
+//         width: $shirt-width
+//         height: $shirt-width
+//         -webkit-mask-image: url("../assets/images/shirt-mask-comp.png")
+//         -webkit-mask-size: contain
+//         -webkit-mask-position: center
+//         mask-image: url("../assets/images/shirt-mask-comp.png")
+//         mask-size: contain
+//         mask-posit-webkit-mask-position: center
+//     &__base
+//         // outline: 2px solid magenta
+//         position: absolute
+//         width: 100%
+//         height: 100%
+//     &__assets
+//         // outline: 2px solid yellow
+//         display: flex
+//         flex-direction: column
+//         // justify-content: space-between
+//         position: absolute
+//         width: 53.5%
+//         height: 77%
+//         bottom: 5.1%
+//         left: 22.2%
+// .design
+//     // outline: 2px solid navy
+//     // background: green
+//     aspect-ratio: 1/1
+//     position: relative
+//     &__layer
+//         // outline: 2px solid red
+//         @include center
+//         width: 100%
+//         height: 100%
+
+// .slogan
+//     // outline: 2px solid purple
+//     width: 100%
+//     max-height: 17%
+//     // color: white
+//     text-transform: uppercase
+//     font-family: impact
+//     font-size: calc(calc(-0.31304347826087px * $chars) + 39.913043478261px)
+//     text-align: center
 
 .winners
     display: flex

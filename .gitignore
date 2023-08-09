@@ -23,5 +23,9 @@ dist-ssr
 *.sln
 *.sw?
 
+# Private
+.env
+
 # Temps
 plan.txt
+OLD-ICONS

@@ -1,37 +1,54 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useContinuousFetch from '../hooks/useContinuousFetch'
+// import useWindowDimensions from '../hooks/useWindowDimensions'
+import useArray from '../hooks/useArray'
+import useTimer from '../hooks/useTImer'
 import useValidate from '../hooks/useValidate'
 import Shirt from './Shirt'
-
-// Lobby
-    //TODO: add kick player button
-    //TODO: change clear players into full session reset
-    //TODO: add check for existing session with option to continue to it or reset with new session
-// Round (root)
-    //TODO: fix next patch request being made upon refresh from restarting server while session is mid game
-    //TODO: make better timestamps
-    //BUG: drawing phase in round 2 doesn't end automatically, but in round 1 it ends fine
-    //TODO: add actual timer
-    //TODO: prevent timer from ending phase if there aren't enough items to use in a round
-    //CLEAN: next effect is split into two effects to add a cooldown so it doesn't just blow through every round as soon as the conditions are met. need to clean up later
+import IMAGES from '../assets/images'
+const DEBUG_MODE = Number(import.meta.env.VITE_DEBUG_MODE)
+/*
+    Lobby
+        TODO: add kick player button
+        TODO: change clear players into full session reset
+        TODO: add check for existing session with option to continue to it or reset with new session
+    Round (root)
+        TODO: fix next patch request being made upon refresh from restarting server while session is mid game
+        TODO: make better timestamps
+        BUG: drawing phase in round 2 doesn't end automatically, but in round 1 it ends fine
+        TODO: add actual timer
+        TODO: prevent timer from ending phase if there aren't enough items to use in a round
+        CLEAN: next effect is split into two effects to add a cooldown so it doesn't just blow through every round as soon as the conditions are met. need to clean up later
+        TODO: fix page refresh in voting sometimes skips voting phase (not consistently, but it happens sometimes when I change code and save to trigger refresh, believe it's anything that would result in a state or content change or something)
+        TODO: fix page refresh on results of a vote phase causing a softlock where it gets stuck loading and the game can't continue
+        CLEAN: utilize new getPlayerName method more, and maybe make more similar methods to avoid all the hassle of getting adjacent data
+        TODO: add check for minimum players before starting
+        TODO: maybe abstract vote counting to a server-side route
+        TODO: maybe make random tiebreaker more cinematic in case of such a tie, like a big coin flip or something
+        TODO: in voting>(isDone||1candidate) add check for if they're the same so display isn't duplicated
+        TODO: add fallback to timer for if something goes wrong, it will just stay stuck
+*/
 
 export default function Session() {
     const nav = useNavigate()
-    const [isWaiting, setIsWaiting] = useState(true)
-    const [timer, setTimer] = useState(60)
-    const [gameData, setGameData] = useContinuousFetch('http://localhost:3000/all', {
+    const nextPhaseCooldown = useRef(false)
+    const {timer, timerMax, isPaused, setTimer, togglePause, resetTimer} = useTimer(60)
+    const [gameData, setGameData] = useContinuousFetch(`${import.meta.env.VITE_SERVER_URL}/all`, {
         parser: (res => {
-            // console.log(res);
             return {
                 sessionId: res.sessionId,
                 inProgress: res.inProgress,
+                icons: res.icons,
                 round: res.round,
                 phase: res.phase,
                 responses: res.responses,
                 limit: res.limit,
                 session: res.sessionId,
                 players: res.players,
+                getPlayerName: function(playerId) {
+                    return res.players[playerId].name
+                },
                 designs: res.designs,
                 votes: res.votes,
                 audienceVotes: res.audienceVotes,
@@ -39,86 +56,89 @@ export default function Session() {
             }
         })
     })
-
     useValidate({
         session: localStorage.getItem('sessionUUID'),
         onInvalid: () => {
-            localStorage.removeItem('sessionUUID')
+            if (!DEBUG_MODE) {
+                localStorage.removeItem('sessionUUID')
+            } else {
+                console.log("DEBUG MODE: remove sessionUUID");
+            }
             nav('..')
         },
         doValidation: gameData?.inProgress,
         dependencies: [gameData]
     })
 
-    // if all players answered or time out, move to next phase/round
+
+    // Move on to next round if ready
     useEffect(() => {
-        if (gameData !== null && isWaiting) {
-            // console.log("CHECK FOR NEXT:", timer === 0 || Object.keys(gameData.players).every(player => gameData.responses[player] >= gameData.limit));
-            if (gameData.round !== 0 && (timer === 0 || Object.keys(gameData.players).every(player => gameData.responses[player] >= gameData.limit))) {
-                // console.log("NEXT");
-                setTimer(60)
-                setIsWaiting(false)
-            }
-        }
-    }, [timer, gameData])
-    useEffect(() => {
-        if (gameData !== null) {    //TEMP: this should keep next fetch from being called immediately for no reason, will make better later
-            if (!isWaiting) {
-                // move on to next round
-                fetch('http://localhost:3000/next', {
+        if (gameData !== null && !nextPhaseCooldown.current) {
+            // game data can be read AND cooldown isn't active
+
+            // all required responses are in
+            const A = Object.keys(gameData.players).every(player => gameData.responses[player] >= gameData.limit)
+            // time has run out
+            const B = (timer === 0)
+            if (A || B) {
+                console.log("move on to next round NOW!");
+                // set cooldown to prevent double requests (maybe clean up later but I think this is the only way)
+                nextPhaseCooldown.current = true
+                
+                // reset + pause timer
+                resetTimer()
+
+                // move to next phase/round
+                fetch(`${import.meta.env.VITE_SERVER_URL}/next`, {
                     method: 'PATCH',
                     headers: {'Content-Type': 'application/json'}
                 })
                     .then(response => response.json())
                     .then(res => {
-                        setIsWaiting(true)
+                        // start timer
+                        togglePause()
+                    })
+                    .then(() => {
+                        nextPhaseCooldown.current = false
                     })
             }
         }
-    }, [isWaiting])
+    }, [gameData, timer])
 
     // Loading
     if (gameData === null) return 'loading...'
 
-    console.log(gameData.round, gameData.phase);
     // Lobby
     if (!gameData.inProgress) return (
         <div >
 			<button onClick={() => {
-				// TODO: add check for minimum players before starting
-				fetch('http://localhost:3000/start', {
+				fetch(`${import.meta.env.VITE_SERVER_URL}/start`, {
 					method: 'PATCH',
 					headers: {'Content-Type': 'application/json'}
 				})
 				.then(response => response.json())
 				.then(res => {
-					console.log(res);
 					localStorage.setItem('sessionUUID', res.sessionId)
 				})
 				.catch(err => console.log(err))
 			}}>Start Game</button>
-
-			{/* TODO: change this to a PUT request */}
-			<button onClick={() => {
-				fetch('http://localhost:3000/players', {
-					method: 'DELETE',
-					headers: {
-						'Content-Type': 'application/json'
-					}
-				})
-			}}>Clear Players</button>
 			<h2>Players:</h2>
 			<ul className='players'>
-				{gameData.players !== null && Object.entries(gameData.players).map(player => {
-                    if (player.toString() === '{}') return 'loading players...'
-                    return (
-                        <li className='player' key={`player-${player[0]}`}>
-                            <h3>{player[1].name}</h3>
-                            <p>{player[1].icon}</p>
-                            <p>{player[1].phrase}</p>
-                        </li>
-                    )
-                })}
+                {(() => {
+                    let players = Object.values(gameData.players)
+                    let x = players.length
+                    players.length = 8
+                    players.fill(null, x, 8)
+                    return players.map((player, index) => {
+                        if (player === null) return <p className='player' key={`player-TEMP${index}`}>join game</p>
+                        return (
+                            <li className='player' key={`player-${player.id}`}>
+                                <h3>{player.name}</h3>
+                                <img src={IMAGES.icons[player.icon]} alt=""  className='icon--small'/>
+                            </li>
+                        )
+                    })
+                })()}
 			</ul>
 		</div>
     )
@@ -127,7 +147,6 @@ export default function Session() {
         <div>
             <p>GAME SESSION: {gameData.sessionId}</p>
             <p>ROUND {gameData.round}</p>
-            <p>waiting: {(timer === 0 || Object.keys(gameData.players).every(player => gameData.responses[player] >= gameData.limit)).toString()}</p>
             <p>PHASE {(() => {
                 if (gameData.round === 4) {}
                 switch(gameData.phase) {
@@ -138,7 +157,20 @@ export default function Session() {
                 }
             })()}</p>
             <p>LIMIT {gameData.limit}</p>
-            <p>TIME: {timer}</p>
+            <p style={{
+                backgroundColor: 
+                    timer === 0 
+                    ? 'red' 
+                    : isPaused 
+                    ? 'lightblue'
+                    : 'lime'
+            }}>TIME: {timer} / {timerMax}</p>
+            <p style={{
+                backgroundColor: 
+                    nextPhaseCooldown.current
+                    ? 'lightblue' 
+                    : 'salmon'
+            }}>NEXT: {JSON.stringify(nextPhaseCooldown.current)}</p>
             <button onClick={() => setTimer(0)}>TIMEOUT</button>
             {(() => {
                 if (gameData.round === 4)return <Results />
@@ -159,14 +191,17 @@ function AwaitingResponses({gameData}) {
     return (
         <>
             <h3>Players:</h3>
-            <ul>
-                {Object.entries(gameData.players).map(player => (
+            <ul className='players'>
+                {Object.values(gameData.players).map(player => (
                     <li 
-                        style={{backgroundColor: (gameData.responses[player[0]] >= gameData.limit) && 'lime'}} 
-                        key={`player-${player[0]}`}
+                        className='player'
+                        style={{backgroundColor: (gameData.responses[player.id] >= gameData.limit) && 'lime'}} 
+                        key={`player-${player.id}`}
                     >
-                        {player[0]}<br />
-                        {player[1].name} {gameData.responses[player[0]] || 0}/{gameData.limit}
+                        
+                        <p>{gameData.responses[player.id] || 0}</p>
+                        <img src={IMAGES.icons[player.icon]} alt="" className='icon--small'/>
+                        <h3>{player.name} </h3>
                     </li>
                 ))}
             </ul>
@@ -179,16 +214,18 @@ function Voting({gameData}) {
     const [showVotes, setShowVotes] = useState(false)
     const [isDone, setIsDone] = useState(false)
     const [endDisplay, setEndDisplay] = useState({})
-    const [candidates, setCandidates] = useContinuousFetch(`http://localhost:3000/shirts?status=${gameData.round !== 3 ? 'unused' : 'winner'}&deep=true&amount=2`, {
+    const [candidates, setCandidates] = useContinuousFetch(`${import.meta.env.VITE_SERVER_URL}/shirts?status=${gameData.round !== 3 ? 'unused' : 'winner'}&deep=true&amount=2`, {
         parser: (res => {
+            // console.log("fetched", res);
             return res.shirts
         }),
         initial: [],
         isPaused: isDone
     })
 
+    const shirtAnimations = [useRef(), useRef()]
+
     const countVotes = (votes, audienceVotes, shirt1, shirt2) => {
-        //TODO: maybe abstract this to a server-side route
         // 1: count player votes
         let tally = {
             [shirt1]: 0,
@@ -234,15 +271,15 @@ function Voting({gameData}) {
         }}
 
         // 4: random (just in case)
-        //TODO: maybe make more cinematic in case of such a tie, like a big coin flip or something
         return [
             {winner: shirt2,loser: shirt1}, 
             {winner: shirt1,loser: shirt2}
         ][Math.floor(Math.random() * 2)]
     }
     const endVote = () => {
+        console.log("ENDING VOTE");
         // add audience votes to shirts
-        fetch(`http://localhost:3000/shirt/${winner}`, {
+        fetch(`${import.meta.env.VITE_SERVER_URL}/shirt/${winner}`, {
             method: 'PATCH',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -250,7 +287,7 @@ function Voting({gameData}) {
             })
         })
             .then(
-                fetch(`http://localhost:3000/shirt/${loser}`, {
+                fetch(`${import.meta.env.VITE_SERVER_URL}/shirt/${loser}`, {
                     method: 'PATCH',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -261,7 +298,7 @@ function Voting({gameData}) {
 
 
         // discard loser
-        fetch(`http://localhost:3000/shirt/${loser}`, {
+        fetch(`${import.meta.env.VITE_SERVER_URL}/shirt/${loser}`, {
             method: 'PATCH',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -272,7 +309,7 @@ function Voting({gameData}) {
             .then(res => {})
 
         // add win to surviving shirt
-        fetch(`http://localhost:3000/shirt/${winner}`, {
+        fetch(`${import.meta.env.VITE_SERVER_URL}/shirt/${winner}`, {
             method: 'PATCH',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -282,7 +319,7 @@ function Voting({gameData}) {
             .then(response => response.json())
             .then(res => {})
 
-        fetch('http://localhost:3000/clear/votes', {
+        fetch(`${import.meta.env.VITE_SERVER_URL}/clear/votes`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -293,7 +330,7 @@ function Voting({gameData}) {
     }
     const endPhase = () => {
         // move on to next round, back to drawing phase
-        fetch('http://localhost:3000/next', {
+        fetch(`${import.meta.env.VITE_SERVER_URL}/next`, {
             method: 'PATCH',
             headers: {'Content-Type': 'application/json'}
         })
@@ -304,7 +341,6 @@ function Voting({gameData}) {
 
     useEffect(() => {   
         // if everyone has voted OR timeout
-        //TODO: prevent NaN from being passed with no votes (shouldn't be a fatal error, but not clean)
         if (candidates.length !== 0 && Object.keys(gameData.votes).length === Object.keys(gameData.players).length || false) { //TODO: add timer check here
             let {winner, loser} = countVotes(
                 gameData.votes, 
@@ -318,11 +354,17 @@ function Voting({gameData}) {
         }
     }, [gameData])
     
-    if (Object.keys(candidates).length === 0) return "loading..."
+    if (Object.keys(candidates).length === 0) return (
+        <>
+            <p>loading</p>
+            <button onClick={() => endPhase()}>IN CASE OF SOFTLOCK</button>
+        </>
+    )
+    
     if (isDone || Object.keys(candidates).length === 1) {
         if (!isDone) {    
             // update winning shirt status to winner
-            fetch(`http://localhost:3000/shirt/${winner}`, {
+            fetch(`${import.meta.env.VITE_SERVER_URL}/shirt/${winner}`, {
                 method: 'PATCH',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
@@ -334,12 +376,12 @@ function Voting({gameData}) {
             if (gameData.round !== 3) {
                 
                 // get streak winner id 
-                fetch(`http://localhost:3000/streak-winner?round=${gameData.round}`)
+                fetch(`${import.meta.env.VITE_SERVER_URL}/streak-winner?round=${gameData.round}`)
                     .then(response => response.json())
                     .then(streakWinner => {
 
                         // set streak winner status to winner
-                        fetch(`http://localhost:3000/shirt/${streakWinner.id}`, {
+                        fetch(`${import.meta.env.VITE_SERVER_URL}/shirt/${streakWinner.id}`, {
                             method: 'PATCH',
                             headers: {'Content-Type': 'application/json'},
                             body: JSON.stringify({
@@ -349,11 +391,10 @@ function Voting({gameData}) {
                             .then(() => {
 
                                 // add winner shirt (w/ elements) to candidates for display
-                                fetch(`http://localhost:3000/shirt-elements/${streakWinner.id}`)
+                                fetch(`${import.meta.env.VITE_SERVER_URL}/shirt-elements/${streakWinner.id}`)
                                     .then(response => response.json())
                                     .then(streakElements => {
                                         // update end display
-                                        //TODO: add check for if they're the same so display isn't duplicated
                                         setEndDisplay({
                                             champion: candidates[0],
                                             streak: streakElements.elements 
@@ -375,11 +416,35 @@ function Voting({gameData}) {
                 <div className="flex">
                     <div>
                         <h3>CHAMPION</h3>
-                        <Shirt design={endDisplay.champion.design} slogan={endDisplay.champion.slogan} animated={false}/>
+                        <Shirt 
+                            design={endDisplay.champion.design} 
+                            slogan={endDisplay.champion.slogan} 
+                            animated={false} 
+                            // ref={shirtAnimations[index]}
+                            initialData={{
+                                shirtRendered: true,
+                                shirtVisible: true,
+                                designVisible: true,
+                                sloganVisible: true,
+                                position: 'leftCenter'
+                            }}
+                        />
                     </div>
                     {endDisplay?.streak && <div>
                         <h3>STREAK</h3>
-                        <Shirt design={endDisplay.streak.design} slogan={endDisplay.streak.slogan} animated={false}/>
+                        <Shirt 
+                            design={endDisplay.streak.design} 
+                            slogan={endDisplay.streak.slogan} 
+                            animated={false} 
+                            // ref={shirtAnimations[index]}
+                            initialData={{
+                                shirtRendered: true,
+                                shirtVisible: true,
+                                designVisible: true,
+                                sloganVisible: true,
+                                position: 'rightCenter'
+                            }}
+                        />
                     </div>}
                 </div>
                 <button onClick={() => endPhase()}>to Next Round</button>
@@ -393,22 +458,53 @@ function Voting({gameData}) {
                 {candidates.map((candidate, index, array) => (
                     <>
                         <div style={{backgroundColor: candidate.shirt.id === loser && 'red'}}>
-                            <Shirt design={candidate.design} slogan={candidate.slogan} animated={true}/>
+                            <Shirt 
+                                design={candidate.design} 
+                                slogan={candidate.slogan} 
+                                animated={true} 
+                                ref={shirtAnimations[index]}
+                                initialData={{
+                                    shirtRendered: true,
+                                    shirtVisible: true,
+                                    designVisible: true,
+                                    sloganVisible: true,
+                                    position: ['leftCenter', 'rightCenter'][index]
+                                }}
+                            />
+                            {/* <button onClick={() => shirtAnimations[index].current.toggleRendered()}>render shirt</button>
+                            <button onClick={() => shirtAnimations[index].current.toggleVisible()}>toggle shirt visibility</button>
+                            <button onClick={() => shirtAnimations[index].current.parts.design()}>reveal art</button>
+                            <button onClick={() => shirtAnimations[index].current.parts.text()}>reveal text</button>
+                            <button onClick={() => shirtAnimations[index].current.movement.move('center')}>center</button>
+                            <button onClick={() => shirtAnimations[index].current.movement.move({x:300, y:300})}>move 300-300</button>
+                            <button onClick={() => shirtAnimations[index].current.goToCorner()}>set position 0-0</button>
+                            <button onClick={() => shirtAnimations[index].current.logPosition()}>log position</button>
+                            <button onClick={() => shirtAnimations[index].current.movement.enter('from-top', {destination: {x:200, y:200}})}>enter from top</button>
+                            <button onClick={() => shirtAnimations[index].current.movement.enter('from-bottom', {destination: {x:200, y:200}})}>enter from bottom</button>
+                            <button onClick={() => shirtAnimations[index].current.movement.enter('from-left', {destination: {x:200, y:200}})}>enter from left</button>
+                            <button onClick={() => shirtAnimations[index].current.movement.enter('from-right', {destination: {x:200, y:200}})}>enter from right</button>
+                            <button onClick={() => shirtAnimations[index].current.movement.exit('to-top')}>exit to top</button>
+                            <button onClick={() => shirtAnimations[index].current.movement.exit('to-bottom')}>exit to bottom</button>
+                            <button onClick={() => shirtAnimations[index].current.movement.exit('to-left')}>exit to left</button>
+                            <button onClick={() => shirtAnimations[index].current.movement.exit('to-right')}>exit to right</button> */}
                             {showVotes &&
                                 <>
+                                    <h3>Created By</h3>
+                                    <p>{gameData.getPlayerName(candidate.shirt.creatorId)}</p>
+                                    <img src={IMAGES.icons[gameData.players[candidate.shirt.creatorId].icon]} alt="" />
                                     <h3>Votes</h3>
                                     <ul>
                                         {Object.entries(gameData.votes)
                                             .filter(vote => vote[1] === candidate.shirt.id)
                                             .map(vote => (
-                                                <li>{gameData.players[vote[0]].name}</li>
+                                                <li>{gameData.getPlayerName(vote[0])}</li>
                                             )
                                         )}
                                     </ul>
                                     <h3>Audience Score</h3>
                                     <p>{(() => {
-                                        // for% = (total# - against#) / total
                                         let total = Object.entries(gameData.audienceVotes).length
+                                        if (total === 0) return 0
                                         let against = Object.entries(gameData.audienceVotes).filter(([v, c]) => c !== candidate.shirt.id).length
                                         let support = ((total - against) / total) * 100
                                         return support
@@ -425,7 +521,7 @@ function Voting({gameData}) {
                     </>
                 ))}
             </div>
-            <p>LOSER: {showVotes ? [candidates[0].shirt.id, candidates[1].shirt.id].indexOf(loser)+1 : 'none'}</p>
+            {/* <p>LOSER: {showVotes ? [candidates[0].shirt.id, candidates[1].shirt.id].indexOf(loser)+1 : 'none'}</p> */}
             <p style={{backgroundColor: showVotes && 'lime'}}>VOTES: {Object.keys(gameData.votes).length}</p>
             {showVotes && <button onClick={() => endVote()}>Proceed</button>}
         </>
@@ -439,7 +535,7 @@ function Results() {
     // credits?
     // play again (same players or new players)
 
-    const [results, setResults] = useContinuousFetch('http://localhost:3000/results', {
+    const [results, setResults] = useContinuousFetch(`${import.meta.env.VITE_SERVER_URL}/results`, {
         parser: (res => {
             return {
                 champion: res.champion,
@@ -464,6 +560,7 @@ function Results() {
                         {title: "Champion",
                             description: 'winner of the game',
                             player: results.champion.player,
+                            icon: results.champion.icon,
                             shirt: {
                                 design: results.champion.shirt.design,
                                 slogan: results.champion.shirt.slogan,
@@ -471,23 +568,28 @@ function Results() {
                         },
                         {title: 'Best Writer',
                             description: `Slogans used on ${results.writer.amount} shirts`,
-                            player: results.writer.player
+                            player: results.writer.player,
+                            icon: results.writer.icon,
                         },
                         {title: 'Best Artist',
                             description: `Designs used on ${results.artist.amount} shirts`,
-                            player: results.artist.player
+                            player: results.artist.player,
+                            icon: results.artist.icon,
                         },
                         {title: 'Most Prolific',
                             description: `Submitted the most designs and slogans, at ${results.prolific.amount}`,
-                            player: results.prolific.player
+                            player: results.prolific.player,
+                            icon: results.prolific.icon,
                         },
                         {title: 'Most Ignored',
                             description: 'Most unused designs and slogans',
-                            player: results.ignored
+                            player: results.ignored,
+                            icon: results.ignored.icon,
                         },
                         {title: 'Audience Favorite',
                             description: 'Most audience votes',
                             player: results.favorite.player,
+                            icon: results.favorite.icon,
                             shirt: {
                                 design: results.favorite.shirt.design,
                                 slogan: results.favorite.shirt.slogan
@@ -496,6 +598,7 @@ function Results() {
                         {title: 'Most Shirtalities',
                             description: 'Won over the most shirts',
                             player: results.shirtalities.player,
+                            icon: results.shirtalities.icon,
                             shirt: {
                                 design: results.shirtalities.shirt.design,
                                 slogan: results.shirtalities.shirt.slogan
@@ -503,14 +606,29 @@ function Results() {
                         },
                         {title: 'Fastest Artist',
                             description: `Finished a design in ${results.fastest.time} seconds`,
-                            player: results.fastest.player
+                            player: results.fastest.player,
+                            icon: results.fastest.icon,
                         },
                     ].map(winner => winner.player !== null && (
                         <div className='winner'>
                             <h2>{winner.player}</h2>
                             <h3>{winner.title}</h3>
                             <p>{winner.description}</p>
-                            {winner?.shirt && <Shirt design={winner.shirt.design} slogan={winner.shirt.slogan} animated={false} />}
+                            {winner?.shirt && (
+                                <Shirt 
+                                    design={winner.shirt.design} 
+                                    slogan={winner.shirt.slogan} 
+                                    animated={false} 
+                                    // ref={shirtAnimations[index]}
+                                    initialData={{
+                                        shirtRendered: true,
+                                        shirtVisible: true,
+                                        designVisible: true,
+                                        sloganVisible: true,
+                                        position: 'inline'
+                                    }}
+                                />
+                            )}
                         </div>
                     ))
                 }
@@ -520,6 +638,7 @@ function Results() {
                 <p>me {":)"}</p>
             </div>
             <div>
+                {/* NOTE: add option to carry over unused items from previous round into next */}
                 <p>Play again with</p>
                 <button>SAME PLAYERS</button>
                 <p>or</p>

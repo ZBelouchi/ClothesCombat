@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "server": "node --experimental-modules server.mjs",
+    "server": "node server.cjs",
+    "live-server": "nodemon server.cjs",
+    "data": "vite --port 5172",
     "session": "vite --port 5173",
     "client1": "vite --port 5174",
     "client2": "vite --port 5175",
@@ -17,13 +19,17 @@
     "client9": "vite --port 5182",
     "client10": "vite --port 5183",
     "client11": "vite --port 5184",
+    "css-preview": "sass src/styles/index.sass src/styles/index.css --watch",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
     "express": "^4.18.2",
+    "framer-motion": "^10.12.17",
+    "nodemon": "^2.0.22",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.11.1",
