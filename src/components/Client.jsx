@@ -256,6 +256,21 @@ function Round() {
     return (
         <div>
             <p>ROUND {gameData.round}</p>
+            <p>PLAYER ID: {localStorage.getItem('playerUUID')}</p>
+            <button onClick={() => {
+                if (confirm("WARNING: You will not be able to rejoin this game as a player if you leave,\However your creations and votes will still remain\nAre you sure you want to quit?")) {
+                    fetch(`${import.meta.env.VITE_SERVER_URL}/player/${localStorage.getItem('playerUUID')}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                        .then(res => res.json())
+                        .then(res => {
+                            console.log(res)
+                        })
+                }
+            }}>LEAVE GAME</button>
             {(() => {
                 if (gameData.round === 0) return <Waiting text={"Waiting for game to begin"} />
                 if (gameData.round === 4) return <Results />

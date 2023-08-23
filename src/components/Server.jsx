@@ -2,7 +2,14 @@ import React from 'react'
 import useContinuousFetch from '../hooks/useContinuousFetch'
 import Collapse from './Collpase'
 import IMAGES from '../assets/images'
-import Shirt, {Design} from './Shirt'
+// import Shirt, {Design} from './Shirt'
+
+function Shirt() {
+    return <p>SHIRT BROKEN :/</p>
+}
+function Design() {
+    return <p>DESIGN BROKEN :/</p>
+}
 
 //TODO: make component to visually represent session data (better than just getting the JSON from the fetch url does)
 export default function Server() {
@@ -59,7 +66,7 @@ export default function Server() {
                 <div className="flex" style={{flexWrap: 'wrap'}}>
                     {data.icons.map((user, index) => (
                         <p  style={{minWidth: '100px', opacity: user !== null ? 1 : 0.2}}>
-                            <img src={IMAGES.icons[index]}/>
+                            <img src={IMAGES.icons[index]} className='icon--med'/>
                             <p>{index}: {user !== null ? data.playerName(user) : 'null'}</p>
                         </p>
                     ))}
@@ -70,8 +77,9 @@ export default function Server() {
                     {Object.values(data.players).map((player) => (
                         <div className="player">
                             <p>{player.name}</p>
+                            <p>{player.id}</p>
                             <p>"{player.phrase}"</p>
-                            <img src={IMAGES.icons[player.icon]} alt="" />
+                            <img src={IMAGES.icons[player.icon]} alt="" className='icon--med' />
                             <div>
                                 <h3>Designs:</h3>
                                 {

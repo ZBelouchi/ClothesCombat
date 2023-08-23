@@ -340,6 +340,13 @@ app.post('/vote', (req, res) => {
 	res.json({success: true, vote: vote})
 })
 
+app.delete('/player/:id', (req, res) => {
+	const id = req.params.id
+	const player = sessionData.removePlayer(id)
+
+	res.json({success: true, message: `player removed`, ...player})
+})
+
 app.patch('/start', (req, res) => {
 	let players = Object.values(sessionData.getData('players'))
 
@@ -446,8 +453,18 @@ app.put('/clear/votes', (req, res) => {
 	sessionData.setData('audienceVotes', {})
 	res.json({success: true})
 })
+app.put('/clear/players', (req, res) => {
+	sessionData.setData('players', {})
+	sessionData.setData('icons', sessionData.getData('icons').fill(null, 0, 17))
+})
 
-
+app.put('/reset', (req, res) => {
+	const keepPlayers = req.body.keepPlayers
+	// reset game to starting data
+	const newData = sessionData.resetData(keepPlayers)
+	
+	res.json({success: true, data: newData})
+})
 
 app.get('/*', (req, res) => {
 	res.sendFile(path.join(__dirname, 'dist', 'index.html'))

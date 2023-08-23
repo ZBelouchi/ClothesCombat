@@ -28,12 +28,19 @@ const DEBUG_MODE = Number(import.meta.env.VITE_DEBUG_MODE)
         TODO: maybe make random tiebreaker more cinematic in case of such a tie, like a big coin flip or something
         TODO: in voting>(isDone||1candidate) add check for if they're the same so display isn't duplicated
         TODO: add fallback to timer for if something goes wrong, it will just stay stuck
+        TODO: add on timer end, submitting whatever the users have entered so far (WIP drawing, slogans, etc.)
 */
 
 export default function Session() {
     const nav = useNavigate()
     const nextPhaseCooldown = useRef(false)
     const {timer, timerMax, isPaused, setTimer, togglePause, resetTimer} = useTimer(60)
+    //DEBUG pause timer on mount to prevent it messing things up in development
+    useEffect(() => {
+        if (!isPaused) {
+            togglePause()
+        }
+    })
     const [gameData, setGameData] = useContinuousFetch(`${import.meta.env.VITE_SERVER_URL}/all`, {
         parser: (res => {
             return {
@@ -73,14 +80,20 @@ export default function Session() {
 
     // Move on to next round if ready
     useEffect(() => {
-        if (gameData !== null && !nextPhaseCooldown.current) {
-            // game data can be read AND cooldown isn't active
+        if (gameData !== null && !nextPhaseCooldown.current && gameData.inProgress) {
+            // game data can be read AND cooldown isn't active AND game is in progress
 
+            // responses are greater than 0
+            const A = JSON.stringify(gameData.responses) !== '{}'
             // all required responses are in
-            const A = Object.keys(gameData.players).every(player => gameData.responses[player] >= gameData.limit)
+            const B = Object.keys(gameData.players).every(player => gameData.responses[player] >= gameData.limit)
             // time has run out
-            const B = (timer === 0)
-            if (A || B) {
+            const C = (timer === 0)
+            console.log(">0 responses", A);
+            console.log("responses meet limit", B);
+            console.log("time run out", C);
+            console.log("will move on", A && B || C);
+            if (A && B || C) {
                 console.log("move on to next round NOW!");
                 // set cooldown to prevent double requests (maybe clean up later but I think this is the only way)
                 nextPhaseCooldown.current = true
@@ -146,6 +159,20 @@ export default function Session() {
     return (
         <div>
             <p>GAME SESSION: {gameData.sessionId}</p>
+            <button onClick={() => {
+                if (confirm("WARNING: the current session will be ended and all data will be lost\nwould you still like to end the game?")) {
+                    fetch(`${import.meta.env.VITE_SERVER_URL}/reset`, {
+                        method: 'PUT',
+                        body: {
+                            keepPlayers: false
+                        }
+                    })
+                        .then(res => res.json())
+                        .then(res => {
+                            console.log(res)
+                        })
+                }
+            }}>END SESSION</button>
             <p>ROUND {gameData.round}</p>
             <p>PHASE {(() => {
                 if (gameData.round === 4) {}
@@ -202,6 +229,18 @@ function AwaitingResponses({gameData}) {
                         <p>{gameData.responses[player.id] || 0}</p>
                         <img src={IMAGES.icons[player.icon]} alt="" className='icon--small'/>
                         <h3>{player.name} </h3>
+                        <button onClick={() => {
+                            fetch(`${import.meta.env.VITE_SERVER_URL}/player/${player.id}`, {
+                                method: 'DELETE',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                }
+                            })
+                                .then(res => res.json())
+                                .then(res => {
+                                    console.log(res)
+                                })
+                        }}>Remove</button>
                     </li>
                 ))}
             </ul>
@@ -640,9 +679,33 @@ function Results() {
             <div>
                 {/* NOTE: add option to carry over unused items from previous round into next */}
                 <p>Play again with</p>
-                <button>SAME PLAYERS</button>
+                <button onClick={() => {
+                    fetch(`${import.meta.env.VITE_SERVER_URL}/reset`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            keepPlayers: true
+                        })
+                    })
+                        .then(res => res.json())
+                        .then(res => {
+                            console.log(res)
+                        })
+                }}>SAME PLAYERS</button>
                 <p>or</p>
-                <button>NEW GAME</button>
+                <button onClick={() => {
+                    fetch(`${import.meta.env.VITE_SERVER_URL}/reset`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            keepPlayers: false
+                        })
+                    })
+                        .then(res => res.json())
+                        .then(res => {
+                            console.log(res)
+                        })
+                }}>NEW GAME</button>
             </div>
         </>
     )
