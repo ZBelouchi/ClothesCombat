@@ -209,14 +209,12 @@ app.get('/slogan/:id', (req, res) => {
 })
 app.get('/shirts', (req, res) => {
 	const {status, round, deep, amount} = req?.query
-	let response
+	let response = sessionData.getData('shirts')
 	let message = "request was within supply limit"
 
 	// filter by status
 	if (status !== undefined) {
-		response = Object.values(sessionData.getData('shirts')).filter(shirt => shirt.status === status)
-	} else {
-		response = sessionData.getData('shirts')
+		response = Object.values(response).filter(shirt => shirt.status === status)
 	}
 
 	if (round !== undefined) {
@@ -225,7 +223,7 @@ app.get('/shirts', (req, res) => {
 
 	// include deep properties (full objects of designs and slogans instead of just ids)
 	if (deep) {
-		response = response.map(shirtId => {
+		response = Object.values(response).map(shirtId => {
 			let shirt = sessionData.getData('shirts')[shirtId.id]
 			return {
 				shirt: shirt,
@@ -277,13 +275,94 @@ app.get('/vote/:id', (req, res) => {
 	res.json({success: true, shirt: sessionData.getData(group)[id]})
 })
 // TODO: get /vote/:spectator
-app.get('/streak-winner', (req, res) => {
-	let {round} = req.query
+app.get('/count-votes', (req, res) => {
+	// check if all players have voted
+	if (Object.values(sessionData.getData('votes')).length === Object.values(sessionData.getData('players')).length) {
+		// if so, determine winner and loser, send them as object
+		const candidates = Object.values(sessionData.getData('shirts'))
+			// filter out irrelevant shirts
+			.filter(shirt => shirt.status === (sessionData.getData('round') !== 3 ? 'unused' : 'winner'))
+			// filter shirts to current round
+			.filter(shirt => Number(shirt.round) === sessionData.getData('round'))
+			// take the first two valid shirts
+			.slice(0, 2)
+			// get deep values
+			.map(shirtId => {
+				let shirt = sessionData.getData('shirts')[shirtId.id]
+				return {
+					shirt: shirt,
+					design: sessionData.getData('designs')[shirt.designId],
+					slogan: sessionData.getData('slogans')[shirt.sloganId]
+				}
+			})
 
-	console.log(round);
-	let winner = sessionData.getStreakWinner(round)
-	res.json({success:true, id: winner.id})
+			const shirtIds = [candidates[0].shirt.id, candidates[1].shirt.id]
+
+		// 1: shirt with more votes is the winner; in case of tie
+		let tally = {
+			[shirtIds[0]]: 0,
+			[shirtIds[1]]: 0
+		}
+		// tally player votes for each
+		for (let vote of Object.values(sessionData.getData('votes'))) {
+			tally[vote]++
+		}
+		// tally audience votes for each, add to total
+		for (let vote of Object.values(sessionData.getData('audienceVotes'))) {
+			tally[vote]++
+		}
+		if (tally[shirtIds[0]] !== tally[shirtIds[1]]) {
+			if (Object.values(tally)[0] > Object.values(tally)[1]) {
+				sessionData.setData('cache', {
+					...sessionData.getData('cache'),
+					winner: shirtIds[0],
+					loser: shirtIds[1]
+				})
+			} else {
+				sessionData.setData('cache', {
+					...sessionData.getData('cache'),
+					winner: shirtIds[1],
+					loser: shirtIds[0]
+				})
+			}
+		// 2: shirt created faster is the winner; in case of tie
+		} else if (candidates[0].shirt.timestamp !== candidates[1].shirt.timestamp) {
+			sessionData.setData('cache', {
+				...sessionData.getData('cache'),
+				winner: shirtIds[candidates[1].shirt.timestamp < candidates[1].shirt.timestamp ? 0 : 1],
+				loser: shirtIds[candidates[1].shirt.timestamp > candidates[1].shirt.timestamp ? 0 : 1] 
+			})
+		} else {
+			// 3: random pick (just in case)
+			sessionData.setData('cache', {
+				...sessionData.getData('cache'),
+				winner: shirtIds.sort((a, b) => a - b)[0],	// random by seed would keep changing with each call during the waiting between votes, so I'm just gonna sort shirt ids alphabetically and first gets the win, this should be random enough
+				loser: shirtIds.sort((a, b) => a - b)[1]
+			})
+		}
+		res.json({
+			success: true,
+			winner: sessionData.getData('cache').winner,
+			loser: sessionData.getData('cache').loser,
+			champion: null,
+			streakWinner: null
+		})
+	// if candidates are below 2 and champ/streak is needed instead
+	} else if (Object.values(sessionData.getData('shirts')).filter(shirt => shirt.status === (sessionData.getData('round') !== 3 ? 'unused' : 'winner')).length < 2) {
+		res.json({
+			success: true,
+			winner: null,
+			loser: null,
+			champion: sessionData.getData('cache').champion,
+			streakWinner: sessionData.getData('cache').streakWinner
+		})
+	} else {
+		// if not return null
+		res.json({success: false, winner: null, loser: null, champion: null, streakWinner: null})
+	}
+
 })
+
 app.get('/results', (req, res) => {
 	const results = sessionData.getResults()
 	res.json({success: true, ...results})
@@ -348,6 +427,7 @@ app.delete('/player/:id', (req, res) => {
 })
 
 app.patch('/start', (req, res) => {
+	const options = req.body
 	let players = Object.values(sessionData.getData('players'))
 
 	// check for min of 3 players
@@ -367,7 +447,7 @@ app.patch('/start', (req, res) => {
 		return
 	}
 
-	const id = sessionData.startGame()
+	const id = sessionData.startGame(options)
 	res.json({success: true, message: `started new game`, sessionId: id})
 })
 app.patch('/next', (req, res) => {
@@ -410,13 +490,13 @@ app.patch('/next', (req, res) => {
 app.patch('/shirt/:shirt', (req, res) => {
 	const shirt = req.params.shirt
 	const {status, wins, audience} = req.body
-	sessionData.updateShirt(shirt, status, wins, audience)
+	sessionData.updateShirt({shirt, status, wins, audience})
 	res.json({success: true})
 })
 app.patch('/shirts', (req, res) => {
 	const status = req.body.status
 	const replace = req.query.replace
-	sessionData.updateShirt(status, replace)
+	sessionData.updateShirt({status, replace})
 	res.json({success: true})
 })
 app.patch('/icon/:icon', (req, res) => {
@@ -446,6 +526,59 @@ app.patch('/icon/:icon', (req, res) => {
 		icons: sessionData.getData('icons'),
 		nameKey: nameKey
 	})
+})
+app.patch('/next-vote', (req, res) => {
+	// end a vote and prep for the next in the phase
+
+	// add 1 win to winning shirt
+	sessionData.updateShirt({
+		shirt: sessionData.getData('cache').winner, 
+		wins: '++'
+	})
+	// discard winning shirt
+	sessionData.updateShirt({
+		shirt: sessionData.getData('cache').loser, 
+		status: 'discarded'
+	})
+	// if going from last vote in phase, add champ and streak to cache
+	let shirts = Object.values(sessionData.getData('shirts'))
+	.filter(shirt => shirt.status === (sessionData.getData('round') !== 3 ? 'unused' : 'winner'))
+	.map(shirtId => {
+		let shirt = sessionData.getData('shirts')[shirtId.id]
+		return {
+			shirt: shirt,
+			design: sessionData.getData('designs')[shirt.designId],
+			slogan: sessionData.getData('slogans')[shirt.sloganId]
+		}
+	})
+
+	//NOTE: copy of get shirt-elements route tooled for this, I should probably add this directly to sessionData for cleaner code later
+	const getShirtFromId = (shirtId) => {
+		const shirt = sessionData.getData('shirts')[shirtId]
+		return ({
+			shirt: shirt,
+			design: sessionData.getData('designs')[shirt.designId],
+			slogan: sessionData.getData('slogans')[shirt.sloganId]
+		})
+	}
+
+
+	if (Object.values(shirts).length < 2) {
+		sessionData.setData('cache', {
+			...sessionData.getData('cache'),
+			champion: getShirtFromId(sessionData.getData('cache').winner),
+			streakWinner: getShirtFromId(sessionData.getStreakWinner().id)
+		})
+	}
+	// clear cache
+	sessionData.setData('cache', {
+		...sessionData.getData('cache'),
+		winner: null,
+		loser: null
+	})
+	// clear votes
+	sessionData.setData('votes', {})
+	sessionData.setData('audienceVotes', {})
 })
 
 app.put('/clear/votes', (req, res) => {

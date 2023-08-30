@@ -173,15 +173,15 @@ function Shirt({design, slogan, animated=false, size=400, initialData}, imperati
             height={size} 
             ref={ref} 
             style={{
-                background: "#3633ff63",
+                // background: "#3633ff63",
                 // position: initialData.position === 'inline' ? "initial" : "absolute",
                 position: "initial",    // not gonna worry about animations for now
             }}
             className={!shirtVisible ? `invisible` : ''}
-            initial={{
-                left: position.x,
-                top: position.y,
-            }}
+            // initial={{
+            //     left: position.x,
+            //     top: position.y,
+            // }}
         >
             <svg
                 width={size} 

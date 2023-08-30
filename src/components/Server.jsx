@@ -1,14 +1,50 @@
-import React from 'react'
+import React, { useRef } from 'react'
 import useContinuousFetch from '../hooks/useContinuousFetch'
+
 import Collapse from './Collpase'
 import IMAGES from '../assets/images'
-// import Shirt, {Design} from './Shirt'
+import ShirtComp, {Design as DesignComp} from './Shirt'
 
-function Shirt() {
-    return <p>SHIRT BROKEN :/</p>
+function Shirt({design, slogan, animated, size=200}) {
+    const ref = useRef()
+
+    return (
+        <div>
+            <ShirtComp 
+                design={design} 
+                slogan={slogan} 
+                animated={animated}
+                size={size}
+                ref={ref}
+                initialData={{
+                    shirtRendered: true,
+                    shirtVisible: true,
+                    designVisible: true,
+                    sloganVisible: true,
+                    position: {x:0, y:0}
+                }}
+            />
+        </div>
+    )
 }
-function Design() {
-    return <p>DESIGN BROKEN :/</p>
+function Design({design, animated, size=200}) {
+    const ref = useRef()
+
+    return (
+        <div style={{
+            backgroundColor: design.backgroundColor,
+            width: size,
+            height: size,
+            display: 'inline-block'
+        }}>
+            <DesignComp 
+                frames={design.frames}
+                animated={animated}
+                loop={false}
+                width={size}
+            />
+        </div>
+    )
 }
 
 //TODO: make component to visually represent session data (better than just getting the JSON from the fetch url does)
@@ -58,6 +94,18 @@ export default function Server() {
                 <p><b>Phase: </b>{data.phase}</p>
                 <p><b>Phase Timestamp: </b>{new Date(data.phaseTimestamp).toISOString()}</p>
             </Collapse>
+            <Collapse title={<h2>options</h2>} collapsed={true}>
+                <p><b>Rounds: </b>{data.options.rounds}</p>
+                <p><b>Time: </b>{data.options.noTimer ? 'infinite' : data.options.time}</p>
+                <p><b>Unlocked Colors: </b>{JSON.stringify(data.options.anyColor)}</p>
+                <p><b>Player Limit: </b>{data.options.players}</p>
+                <p><b>Mode: </b>{(() => {
+                    switch (data.options.mode) {
+                        case 'koh': return 'King of the Hill'
+                        case 'bracket': return "Tournament Bracket"
+                    }
+                })()}</p>
+            </Collapse>
             <Collapse title={<h2>responses</h2>} collapsed={true}> 
                 <p><b>Response Limit: </b>{data.limit}</p>
                 {Object.entries(data.responses).map(([k, v]) => <p><b>{data.playerName(k)}: </b>{v} {v >= data.limit && '(DONE)'}</p>)}
@@ -85,7 +133,7 @@ export default function Server() {
                                 {
                                     Object.values(data.designs)
                                     .filter(design => design.creatorId === player.id)
-                                    .map(design => <Design frames={design.frames} backgroundColor={design.backgroundColor} animated={true}/>)
+                                    .map(design => <Design design={design} animated={true} size={125}/>)
                                 }
                             </div>
                             <div>
@@ -101,7 +149,7 @@ export default function Server() {
                                 {
                                     Object.values(data.shirts)
                                     .filter(shirt => shirt.creatorId === player.id)
-                                    .map(shirt => <Shirt design={data.deep('designs', shirt.designId)} slogan={data.deep('slogans', shirt.sloganId)} animated={true} />)
+                                    .map(shirt => <Shirt design={data.deep('designs', shirt.designId)} slogan={data.deep('slogans', shirt.sloganId)} animated={true} size={150}/>)
                                 }
                             </div>
                         </div>
@@ -116,7 +164,8 @@ export default function Server() {
                     {
                         Object.values(data.designs).map(design => (
                             <div className='player'>
-                                <Design frames={design.frames} backgroundColor={design.backgroundColor} animated={true}/>
+                                <Design design={design} animated={true}/>
+                                <p>{design.id}</p>
                                 <p><b>Creator: </b>{data.playerName(design.creatorId)}</p>
                                 <p style={{
                                     backgroundColor: design.recipient === null
@@ -124,14 +173,16 @@ export default function Server() {
                                     : design.recipient === 'used'
                                     ? 'red'
                                     : 'yellow'
-                                }}><b>Recipient / Status: </b>{
+                                }}>
+                                    <b>Recipient / Status: </b>
+                                    {
                                     design.recipient === null
                                     ? 'unused'
                                     : design.recipient === 'used'
-                                    ? <Shirt design={design} slogan={data.deep('slogans', Object.values(data.shirts).find(shirt => shirt.designId === design.id).sloganId)} animated={false}/>
+                                    ? <Shirt design={design} slogan={data.deep('slogans', Object.values(data.shirts).find(shirt => shirt.designId === design.id).sloganId)} animated={false} size={150}/>
                                     : data.playerName(design.recipient) 
-
-                                }</p>
+                                    }
+                                </p>
                                 <p><b>Frames (amt.): </b>{design.frames.length}</p>
                                 <p><b>Background Color: </b>{design.backgroundColor}</p>
                                 <p><b>Timestamp: </b>{design.timestamp}</p>
@@ -145,7 +196,11 @@ export default function Server() {
                     {
                         Object.values(data.slogans).map(slogan => (
                             <div className='player'>
-                                <h1>{slogan.text}</h1>
+                                <p style={{
+                                    fontFamily: 'impact',
+                                    fontSize: 30,
+                                }}>{slogan.text}</p>
+                                <p>{slogan.id}</p>
                                 <p><b>Creator: </b>{data.playerName(slogan.creatorId)}</p>
                                 <p style={{
                                     backgroundColor: slogan.recipient === null
@@ -161,6 +216,7 @@ export default function Server() {
                                         design={data.deep('designs', Object.values(data.shirts).find(shirt => shirt.sloganId === slogan.id).designId)} 
                                         slogan={slogan} 
                                         animated={false}
+                                        size={150}
                                     />
                                     : data.playerName(slogan.recipient) 
 
@@ -176,6 +232,7 @@ export default function Server() {
                         Object.values(data.shirts).map(shirt => (
                             <div className='player'>
                                 <Shirt design={data.deep('designs', shirt.designId)} slogan={data.deep('slogans', shirt.sloganId)} animate={true}/>
+                                <p>{shirt.id}</p>
                                 <p><b>Creator: </b>{data.playerName(shirt.creatorId)}</p>
                                 <p><b>Artist: </b>{data.playerName(data.deepProp('designs', shirt.designId, 'creatorId'))}</p>
                                 <p><b>Author: </b>{data.playerName(data.deepProp('slogans', shirt.sloganId, 'creatorId'))}</p>
@@ -219,12 +276,13 @@ export default function Server() {
                     {Object.entries(data.votes).map(([k, v]) => (
                         <div className='player'>
                             <h2>{data.playerName(k)}</h2>
-                            <img src={IMAGES.icons[data.deepProp('players', k, 'icon')]} alt="" />
+                            <img src={IMAGES.icons[data.deepProp('players', k, 'icon')]} alt="" className='icon--med'/>
                             <p>voted for</p>
                             <Shirt 
                                 design={data.deep('designs', data.deepProp('shirts', v, 'designId'))}
                                 slogan={data.deep('slogans', data.deepProp('shirts', v, 'sloganId'))}
                                 animated={false}
+                                size={150}
                             />
                         </div>
                     ))}
@@ -237,9 +295,16 @@ export default function Server() {
                                 design={data.deep('designs', data.deepProp('shirts', v, 'designId'))}
                                 slogan={data.deep('slogans', data.deepProp('shirts', v, 'sloganId'))}
                                 animated={false}
+                                size={150}
                             />
                         </div>
                     ))}
+            </Collapse>
+            <Collapse title={<h2>cache</h2>} collapsed={true}>
+                <p><b>Winner: </b>{data.cache.winner}</p>
+                <p><b>Loser: </b>{data.cache.loser}</p>
+                <p><b>Champion: </b>{JSON.stringify(data.cache.champion)}</p>
+                <p><b>Streak: </b>{JSON.stringify(data.cache.streakWinner)}</p>
             </Collapse>
             {/* <Collapse title={<h2>results</h2>} collapsed={true}>
             </Collapse> */}

@@ -1,5 +1,4 @@
 import React, { useRef, useState } from 'react'
-//NOTE: this was originally for object states but had to turn it into refs cause of some chicanery. this will NOT cause re-renders when updated
 
 export default function useObject(defaultValue) {
     const [object, setObject] = useState(defaultValue)

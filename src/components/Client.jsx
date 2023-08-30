@@ -796,6 +796,7 @@ function Voting({votes, round}) {
     )
 }
 function Results() {
+    
     return <p>results</p>
 }
 
