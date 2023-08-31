@@ -279,11 +279,16 @@ app.get('/count-votes', (req, res) => {
 	// check if all players have voted
 	if (Object.values(sessionData.getData('votes')).length === Object.values(sessionData.getData('players')).length) {
 		// if so, determine winner and loser, send them as object
+
 		const candidates = Object.values(sessionData.getData('shirts'))
 			// filter out irrelevant shirts
 			.filter(shirt => shirt.status === (sessionData.getData('round') !== 3 ? 'unused' : 'winner'))
 			// filter shirts to current round
-			.filter(shirt => Number(shirt.round) === sessionData.getData('round'))
+			.filter(shirt => {
+				// ignore round filter on final vote
+				if (sessionData.getData('round') === 3) return true
+				return Number(shirt.round) === sessionData.getData('round')
+			})
 			// take the first two valid shirts
 			.slice(0, 2)
 			// get deep values
@@ -296,8 +301,8 @@ app.get('/count-votes', (req, res) => {
 				}
 			})
 
-			const shirtIds = [candidates[0].shirt.id, candidates[1].shirt.id]
-
+		const shirtIds = [candidates[0].shirt.id, candidates[1].shirt.id]
+		
 		// 1: shirt with more votes is the winner; in case of tie
 		let tally = {
 			[shirtIds[0]]: 0,
@@ -453,6 +458,9 @@ app.patch('/start', (req, res) => {
 app.patch('/next', (req, res) => {
 	// check if phase exceeds limit (4)
 	if (sessionData.getData('phase') >= 4) {
+		// reset vote data before exiting voting phase
+		console.log("RESET VOTING CACHE")
+		sessionData.resetVoting()
 
 		// check if next round is 3 (final)
 		if (sessionData.getData('round') + 1 === 3) {
@@ -535,7 +543,7 @@ app.patch('/next-vote', (req, res) => {
 		shirt: sessionData.getData('cache').winner, 
 		wins: '++'
 	})
-	// discard winning shirt
+	// discard losing shirt
 	sessionData.updateShirt({
 		shirt: sessionData.getData('cache').loser, 
 		status: 'discarded'
@@ -561,7 +569,6 @@ app.patch('/next-vote', (req, res) => {
 			slogan: sessionData.getData('slogans')[shirt.sloganId]
 		})
 	}
-
 
 	if (Object.values(shirts).length < 2) {
 		sessionData.setData('cache', {

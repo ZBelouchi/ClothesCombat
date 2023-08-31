@@ -796,7 +796,7 @@ function Voting({votes, round}) {
     )
 }
 function Results() {
-    
+    // view shirts page
     return <p>results</p>
 }
 

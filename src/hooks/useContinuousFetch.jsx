@@ -16,6 +16,13 @@ export default function useContinuousFetch(url, {options={}, parser=(res => res)
         paused.current = isPaused
     }, [isPaused])
 
+    useEffect(() => {
+        if (hasRun.current === false) {
+            // I HAVE NO IDEA WHY IT KEEPS GOING BACK TO FALSE BUT THIS STOPPED IT AND I'M NOT DEALING WITH THIS RIGHT NOW
+            hasRun.current = true
+        }
+    }, [hasRun.current])
+
     // console.log("FETCH HAS", value);
     useEffect(() => {
         const interval = setInterval(
@@ -36,7 +43,7 @@ export default function useContinuousFetch(url, {options={}, parser=(res => res)
         return () => {
             clearInterval(interval)
         }
-    }, [paused, runAtLeastOnce, hasRun.current])
+    }, [paused, runAtLeastOnce.current, hasRun.current])
 
     return [value, set]
 }
