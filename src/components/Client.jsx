@@ -8,6 +8,7 @@ import Form from './Form'
 import Shirt from './Shirt'
 import useObject from '../hooks/useObject'
 import IMAGES from '../assets/images'
+import Collapse from './Collpase'
 const DEBUG_MODE = Number(import.meta.env.VITE_DEBUG_MODE)
 /* TODOS
     Join
@@ -30,6 +31,7 @@ const DEBUG_MODE = Number(import.meta.env.VITE_DEBUG_MODE)
         TODO: stop spectators from voting when current vote has concluded and it's showing who had more votes*
         TODO: add character limit (70) to slogans
         CLEAN: add useReduce hook to combining phase for cleaner code
+        TODO: add download button to results shirts
 */
 
 export default function Client() {
@@ -795,9 +797,73 @@ function Voting({votes, round}) {
         </>
     )
 }
-function Results() {
-    // view shirts page
-    return <p>results</p>
+function Results({gameData}) {
+    const shirtAnimations = [useRef(), useRef()]
+    const [shirts, setShirts] = useContinuousFetch(`${import.meta.env.VITE_SERVER_URL}/shirts?deep=true`, {
+        parser: (res => {
+            return [
+                res.shirts.find(shirt => shirt.shirt.status === 'winner'),
+                ...res.shirts
+                    // sort by wins descending    
+                    .sort((a, b) => b.shirt.wins - a.shirt.wins)
+                    // remove winner
+                    .filter(shirt => shirt.shirt.status !== 'winner')
+            ]
+        }),
+        initial: []
+    })
+    if (shirts.length == 0) return <p>Loading...</p>
+    return (
+        <div className="results">
+            <Collapse title={<h2>Shirts</h2>} collapsed={false}>
+                    <div className='player' style={{margin: 'auto'}}>
+                        <h2>WINNER</h2>
+                        <Shirt 
+                            design={shirts[0].design} 
+                            slogan={shirts[0].slogan} 
+                            animated={true} 
+                            ref={shirtAnimations[0]}
+                            initialData={{
+                                shirtRendered: true,
+                                shirtVisible: true,
+                                designVisible: true,
+                                sloganVisible: true,
+                                position: ['leftCenter', 'rightCenter'][0]
+                            }}
+                        />
+                        <div className="flex">
+                            <p>Created by: {shirts[0].creator.name}</p>
+                            <img src={IMAGES.icons[shirts[0].creator.icon]} className='icon--small'/>
+                        </div>
+                        <p>Wins: {shirts[0].shirt.wins}</p>
+                    </div>
+                <div className="players">
+                    {shirts.slice(1).map((shirt, index) => (
+                        <div className='player'>
+                            <Shirt 
+                                design={shirt.design} 
+                                slogan={shirt.slogan} 
+                                animated={true} 
+                                ref={shirtAnimations[0]}
+                                initialData={{
+                                    shirtRendered: true,
+                                    shirtVisible: true,
+                                    designVisible: true,
+                                    sloganVisible: true,
+                                    position: ['leftCenter', 'rightCenter'][0]
+                                }}
+                            />
+                            <div className="flex">
+                                <p>Created by: {shirt.creator.name}</p>
+                                <img src={IMAGES.icons[shirt.creator.icon]} className='icon--small'/>
+                            </div>
+                            <p>Wins: {shirt.shirt.wins}</p>
+                        </div>
+                    ))}
+                </div>
+            </Collapse>
+        </div>
+    )
 }
 
 

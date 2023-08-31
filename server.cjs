@@ -228,7 +228,8 @@ app.get('/shirts', (req, res) => {
 			return {
 				shirt: shirt,
  				design: sessionData.getData('designs')[shirt.designId],
- 				slogan: sessionData.getData('slogans')[shirt.sloganId]
+ 				slogan: sessionData.getData('slogans')[shirt.sloganId],
+				creator: sessionData.getData('players')[shirt.creatorId]
  			}
 		})
 	}
