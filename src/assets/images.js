@@ -16,6 +16,7 @@ import icon13 from '../assets/images/icon13.png'
 import icon14 from '../assets/images/icon14.png'
 import icon15 from '../assets/images/icon15.png'
 import icon16 from '../assets/images/icon16.png'
+import iconNull from '../assets/images/iconNull.png'
 import explosion from '../assets/images/explosion.gif'
 
 export default {
@@ -37,7 +38,8 @@ export default {
         icon13,
         icon14,
         icon15,
-        icon16
+        icon16,
+        iconNull,
     ],
     animations: {
         explosion: explosion

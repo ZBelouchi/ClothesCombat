@@ -6,6 +6,7 @@ const cors = require('cors')
 const path = require('path')
 const sessionData = require('./sessionData.cjs')
 const dotenv = require('dotenv')
+const {v4: uuid} = require('uuid')
 
 dotenv.config({path: './.env'})
 
@@ -65,16 +66,21 @@ app.get('/validate', (req, res) => {
 	const strictMode = strict !== 'false'
 	let report = {
 		inProgress: sessionData.getData('inProgress'),
-		allValid: true
+		allValid: true,
+		sessionExists: false
 	}
 	
 	// if sessionId is null, session hasn't started
 	if (sessionData.getData('sessionId') === null) {
-		res.status(500).json({success: false, message: "sessionId is not set, there is no session in progress", received: req.query, })
+		res.status(500).json({success: false, report: report, message: "sessionId is not set, there is no session in progress", received: req.query, })
+		return
 	}
+	report.sessionExists = true
+
 	// fail if nothing given to validate
 	if (session === undefined && player === undefined && spectator === undefined) {
-		res.status(500).json({success: false, message: "nothing was given for validation", received: req.query, })
+		res.status(500).json({success: false, report: report, message: "nothing was given for validation", received: req.query, })
+		return
 	}
 	queryLoop: for (let q of ["session", "player", "spectator"]) {
 		if (req.query[q] === undefined) break queryLoop
@@ -374,6 +380,11 @@ app.get('/results', (req, res) => {
 	res.json({success: true, ...results})
 })
 
+app.post('/init-session', (req, res) => {
+	const id = uuid()
+	sessionData.setData('sessionId', DEBUG ? 'DEBUG-SESSION' : id)
+	res.json({success: true, sessionId: id})
+})
 app.post('/player', (req, res) => {
 	// check if player list already at 8 players
 	if (Object.values(sessionData.getData('players')).length === 8) {

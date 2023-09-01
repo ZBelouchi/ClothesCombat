@@ -9,6 +9,7 @@ import Shirt from './Shirt'
 import useObject from '../hooks/useObject'
 import IMAGES from '../assets/images'
 import Collapse from './Collpase'
+import Loading from './Loading'
 const DEBUG_MODE = Number(import.meta.env.VITE_DEBUG_MODE)
 /* TODOS
     Join
@@ -32,6 +33,7 @@ const DEBUG_MODE = Number(import.meta.env.VITE_DEBUG_MODE)
         TODO: add character limit (70) to slogans
         CLEAN: add useReduce hook to combining phase for cleaner code
         TODO: add download button to results shirts
+        CLEAN: maybe do something to prevent the session id being overwritten every time a validation happens
 */
 
 export default function Client() {
@@ -47,16 +49,30 @@ export default function Client() {
     useEffect(() => {
         switch (localStorage.getItem('DEBUG-initRoute')) {
             case 'session':         // 5173
-                nav('/session')
+                nav('/host')
                 break
             case 'server':          // 5172
                 nav('/server')
                 break
         }
     }, [])
+ 
+    // console.log(report);
+    if (Object.values(report).length > 0) {
+        const {inProgress, session, player, spectator, sessionExists} = report
+        
+        // if no session exists, clear storage
+        if (sessionExists === false) {
+            if (!DEBUG_MODE) {
+                localStorage.removeItem('sessionUUID')
+                localStorage.removeItem('playerUUID')
+                localStorage.removeItem('spectatorUUID')
+            } else {
+                console.log("DEBUG MODE: remove sessionUUID, playerUUID, spectatorUUID")
+            }
+            return <p>There is no game session active at the moment, please generate a new session or wait for one to be created</p>
+        }
 
-    if (report) {
-        const {inProgress, session, player, spectator} = report
         if (inProgress) {
             // if game is in progress, check for existing id to rejoin
             if (session && player) {
@@ -109,7 +125,7 @@ export default function Client() {
                 </>
             )
         }
-    }
+    } else return <Loading/>
 }
 
 function PlayerForm() {

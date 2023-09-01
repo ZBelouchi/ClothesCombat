@@ -7,7 +7,7 @@
     "server": "node server.cjs",
     "live-server": "nodemon server.cjs",
     "data": "vite --port 5172",
-    "session": "vite --port 5173",
+    "host": "vite --port 5173",
     "client1": "vite --port 5174",
     "client2": "vite --port 5175",
     "client3": "vite --port 5176",
