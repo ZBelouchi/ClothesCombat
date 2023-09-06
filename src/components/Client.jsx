@@ -38,12 +38,21 @@ const DEBUG_MODE = Number(import.meta.env.VITE_DEBUG_MODE)
 
 export default function Client() {
     const nav = useNavigate()
-    const report = useValidate({
-        strict: false,
-        player: localStorage.getItem('playerUUID'),
-        session: localStorage.getItem('sessionUUID'),
-        spectator: localStorage.getItem('spectatorUUID')
-    })
+    const report = useValidate(
+        !DEBUG_MODE
+            ? {
+                strict: false,
+                player: localStorage.getItem('playerUUID'),
+                session: localStorage.getItem('sessionUUID'),
+                spectator: localStorage.getItem('spectatorUUID')
+            }
+            : {
+                strict: false,
+                player: localStorage.getItem('DEBUG-PLAYER'),
+                session: 'DEBUG-SESSION',
+                spectator: localStorage.getItem('DEBUG-SPECTATOR')
+            }
+    )
 
     //DEBUG: automatically route session and server visualizer back after refresh
     useEffect(() => {
@@ -59,7 +68,7 @@ export default function Client() {
  
     // console.log(report);
     if (Object.values(report).length > 0) {
-        const {inProgress, session, player, spectator, sessionExists} = report
+        const {inProgress, session, player, spectator, sessionExists, maxPlayers} = report
         
         // if no session exists, clear storage
         if (sessionExists === false) {
@@ -70,7 +79,12 @@ export default function Client() {
             } else {
                 console.log("DEBUG MODE: remove sessionUUID, playerUUID, spectatorUUID")
             }
-            return <p>There is no game session active at the moment, please generate a new session or wait for one to be created</p>
+            return (
+                <div>
+                    <p>There is no game session active at the moment, please generate a new session or wait for one to be created</p>
+                    <button onClick={() => nav('./session')}>Host Session</button>
+                </div>
+            )
         }
 
         if (inProgress) {
@@ -85,42 +99,27 @@ export default function Client() {
                 // if no valid id is found, join as spectator
                 return (
                     // Join as Spectator
-                    <>
-                        <p>a game is already in progress</p>
-                        <button onClick={() => {
-                            fetch(`${import.meta.env.VITE_SERVER_URL}/spectator`, {
-                                method: 'POST',
-                                headers: {'Content-Type': 'application/json'}
-                            })
-                                .then(response => response.json())
-                                .then(res => {
-                                    console.log(res)
-
-                                    // add spectator uuids to storage for later
-                                    if (!DEBUG_MODE) {
-                                        localStorage.removeItem('playerUUID')
-                                    } else {
-                                        console.log("DEBUG MODE: remove playerUUID")
-                                    }
-                                    localStorage.setItem('spectatorUUID', res.spectatorId)
-                                    localStorage.setItem('sessionUUID', res.sessionId)
-                                    // navigate to round as spectator
-                                    return <Audience />
-                                })
-
-                        }}>Join Audience</button>
-                    </>
+                    <SpectatorForm />
                 )
             }
+        // if game is not in progress
         } else {
             if (session && player) {
+                // and session and player are valid, show icon picker
                 // console.log("resumePlayer()")
                 return <IconForm />
+            }
+            if (session && spectator) {
+                // if spectator valid show something until game starts
+                return <p>The will begin momentarily</p>
+            }
+            else if (maxPlayers && !spectator) {
+                // if no valid session/player ids, but player limit already reached
+                return <SpectatorForm />
             }
             return (
                 <>
                     <PlayerForm />
-                    <button onClick={() => nav('./session')}>Host Session</button>
                     <button onClick={() => nav('./server')}>View Data (DEBUG)</button>
                 </>
             )
@@ -176,17 +175,43 @@ function PlayerForm() {
         <form onSubmit={handleSubmit}>
             <label>
                 Name:
-                <input type="text" value={formData.name} onChange={e => updateFormData({name: e.target.value})} autoFocus/>            
+                <input type="text" value={formData.name} onChange={e => updateFormData({name: e.target.value.toUpperCase()})} maxLength={12} autoFocus/>            
             </label>
             <label>
                 Victory Phrase:
-                <input type="text" value={formData.phrase} onChange={e => updateFormData({phrase: e.target.value})}/>            
+                <input type="text" value={formData.phrase} onChange={e => updateFormData({phrase: e.target.value})} maxLength={20}/>            
             </label>
             <input type="submit" value="Join" />
         </form>
     )
 }
+function SpectatorForm() {
+    return (<>
+        <p>a game is already in progress</p>
+        <button onClick={() => {
+            fetch(`${import.meta.env.VITE_SERVER_URL}/spectator`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            })
+                .then(response => response.json())
+                .then(res => {
+                    console.log(res)
 
+                    // add spectator uuids to storage for later
+                    if (!DEBUG_MODE) {
+                        localStorage.removeItem('playerUUID')
+                    } else {
+                        console.log("DEBUG MODE: remove playerUUID")
+                    }
+                    localStorage.setItem('spectatorUUID', res.spectatorId)
+                    localStorage.setItem('sessionUUID', res.sessionId)
+                    // navigate to round as spectator
+                    return <Audience />
+                })
+
+        }}>Join Audience</button>
+    </>)
+}
 function IconForm() {
     const [iconData, setIconData] = useContinuousFetch(`${import.meta.env.VITE_SERVER_URL}/icons`, {
         parser: res => ({

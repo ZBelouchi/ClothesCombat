@@ -67,7 +67,8 @@ app.get('/validate', (req, res) => {
 	let report = {
 		inProgress: sessionData.getData('inProgress'),
 		allValid: true,
-		sessionExists: false
+		sessionExists: false,
+		maxPlayers: Object.keys(sessionData.getData('players')).length === 8
 	}
 	
 	// if sessionId is null, session hasn't started
@@ -84,6 +85,10 @@ app.get('/validate', (req, res) => {
 	}
 	queryLoop: for (let q of ["session", "player", "spectator"]) {
 		if (req.query[q] === undefined) break queryLoop
+		if (req.query[q].startsWith("DEBUG-")) {
+			report[q] = true
+			continue queryLoop
+		}
 		switchCase: switch (q) {
 			case "session":
 				report[q] = sessionData.getData('sessionId') === session

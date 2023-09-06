@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useContinuousFetch from '../hooks/useContinuousFetch'
 // import useWindowDimensions from '../hooks/useWindowDimensions'
-import useArray from '../hooks/useArray'
 import useObject from '../hooks/useObject'
 import useTimer from '../hooks/useTImer'
 import useValidate from '../hooks/useValidate'
@@ -46,6 +45,7 @@ export default function Host() {
                 limit: res.limit,
                 session: res.sessionId,
                 players: res.players,
+                spectators: res.spectators,
                 getPlayerName: function(playerId) {
                     return res.players[playerId].name
                 },
@@ -57,8 +57,9 @@ export default function Host() {
         })
     })
     useValidate({
-        session: localStorage.getItem('sessionUUID'),
+        session: !DEBUG_MODE ? localStorage.getItem('sessionUUID') : localStorage.getItem('DEBUG-SESSION'),
         onInvalid: () => {
+            console.log("HERE");
             if (!DEBUG_MODE) {
                 localStorage.setItem('sessionUUID', gameData.sessionId)
             } else {
@@ -77,19 +78,6 @@ export default function Host() {
         players: 8,
         mode: 'koh'
     })
-    const handleSubmit = e => {
-        e.preventDefault()
-        fetch(`${import.meta.env.VITE_SERVER_URL}/start`, {
-            method: 'PATCH',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(formData)
-        })
-        .then(response => response.json())
-        .then(res => {
-            localStorage.setItem('sessionUUID', res.sessionId)
-        })
-        .catch(err => console.log(err))
-    }
 
     // Move on to next round if ready
     useEffect(() => {
@@ -128,21 +116,37 @@ export default function Host() {
     }, [gameData, timer])
 
     return (
-        <main className="session">
-            <div className="container">
-                {(() => {
-                    // Loading
-                    if (gameData === null) return <Loading/>
-
-                    // Lobby
-                    if (!gameData.inProgress) return (
-                        <div className="flex">
-                            <section className="section section--code">
+        <main className="host">
+            {(() => {
+                // Loading
+                if (gameData === null) return <Loading/>
+                // console.log(gameData);
+                // Lobby
+                if (!gameData.inProgress) return (
+                    <>
+                        <section className="host__section host__section--code">
+                            <div className='start'>
+                                <h1 className='start__header'>CLOTHES COMBAT</h1>
+                                <p>Join the game on your device with code:</p>
                                 {gameData.sessionId !== null ? (
                                     <>
-                                        <p>{gameData.sessionId}</p>
-                                        <form onSubmit={handleSubmit} className='options'>
-                                            <input type='submit' value={"Start Game"} />
+                                        <p className='start__code'>{gameData.sessionId.slice(undefined, 4)}</p>
+                                        <button
+                                            className='start__btn btn'
+                                            onClick={() => {
+                                                    fetch(`${import.meta.env.VITE_SERVER_URL}/start`, {
+                                                        method: 'PATCH',
+                                                        headers: {'Content-Type': 'application/json'},
+                                                        body: JSON.stringify(formData)
+                                                    })
+                                                    .then(response => response.json())
+                                                    .then(res => {
+                                                        localStorage.setItem('sessionUUID', res.sessionId)
+                                                    })
+                                                    .catch(err => console.log(err))
+                                            }}
+                                        >Start Game</button>
+                                        {/* <form className='options'>
                                             <hr />
                                             <label>Number of Rounds (TBD)
                                                 <input type="number" value={formData.rounds} onChange={e => updateFormData({rounds: e.target.value})} min={1} max={10}/> + final vote(s)
@@ -165,60 +169,81 @@ export default function Host() {
                                                     <option value='bracket'>Tournament</option>
                                                 </select>
                                             </label><br />
-                                        </form>
+                                        </form> */}
                                     </>
                                 ) : (
-                                    <button onClick={() => {
-                                        fetch(`${import.meta.env.VITE_SERVER_URL}/init-session`, {
-                                            method: 'POST'
-                                        })
-                                            .then(response => response.json())
-                                            .then(res => {
-                                                console.log(res);
-                                                return localStorage.setItem('sessionUUID', res.sessionId)
-                                            })
-                                    }}>Generate Session ID</button>
+                                    <>
+                                        <p className='start__code'>???</p>
+                                        <button 
+                                            className='start__btn btn'
+                                            onClick={() => {
+                                                fetch(`${import.meta.env.VITE_SERVER_URL}/init-session`, {
+                                                    method: 'POST'
+                                                })
+                                                    .then(response => response.json())
+                                                    .then(res => {
+                                                        console.log(res);
+                                                        return localStorage.setItem('sessionUUID', res.sessionId)
+                                                    })
+                                            }}
+                                        >Generate Session ID</button>
+                                    </>
                                 )}
-                            </section>
-                            <section className="section section--players">
-                                {gameData.sessionId !== null ? (
-                                    <ul className='players'>
+                            </div>
+                        </section>
+                        <section className="host__section host__section--players">
+                            {gameData.sessionId !== null ? (
+                                <>
+                                    {/* Audience */}
+                                    {/* {Object.keys(gameData.players).length === 8 && ( */}
+                                    {true && (
+                                        <div className='host__audience'>
+                                            <p>Extra players can join the</p>
+                                            <span>
+                                                <b>AUDIENCE {gameData.spectators.length}</b>
+                                            </span>
+                                            <p>Your votes will influence the game</p>
+                                        </div>
+                                    )}
+                                    {/* player list */}
+                                    <ul className='players-list'>
                                         {(() => {
                                             let players = Object.values(gameData.players)
                                             let x = players.length
                                             players.length = 8
                                             players.fill(null, x, 8)
-                                            return players.map((player, index) => {
-                                                // Empty slot
-                                                if (player === null) return (
-                                                    <li className='player player--empty' key={`player-TEMP${index}`}>
-                                                        <p>JOIN GAME</p>
-                                                    </li>
-                                                )
-                                                // Joined player
-                                                return (
-                                                    <li className='player player--joined' key={`player-${player.id}`}>
-                                                        <div className='icon icon--small'>
-                                                            <img src={IMAGES.icons[
-                                                                player?.icon 
-                                                                    ? player.icon
-                                                                    : 16
-                                                                ]} alt=""/>
+                                            return players.map((player, index) => (
+                                                <li className={`player player--${player !== null ? 'joined' : 'empty'}`} key={`player-${index}`}>
+                                                    {player !== null && (
+                                                        <div className='player__icon icon icon--small'>
+                                                                <img 
+                                                                    src={IMAGES.icons[
+                                                                        player?.icon !== null 
+                                                                            ? player.icon
+                                                                            : 16
+                                                                        ]}
+                                                                    alt="player icon"
+                                                                />
                                                         </div>
-                                                        <p>{player.name}</p>
-                                                    </li>
-                                                )
-                                            })
+                                                    )}
+                                                    <p className='player__name'>
+                                                        {player !== null 
+                                                            ? player.name
+                                                            : "JOIN GAME"
+                                                        }
+                                                    </p>
+                                                </li>
+                                            ))
                                         })()}
                                     </ul>
-                                ) : (
-                                    <p>generate code for players to join</p>
-                                )}
-                            </section>
-                        </div>
-                    )
-                })()}
-            </div>
+                                </>
+                            ) : (
+                                <p>generate code for players to join</p>
+                            )}
+                        </section>
+                    </>
+                )
+            })()}
         </main>
     )
 
