@@ -10,13 +10,14 @@ import icon6 from  '../assets/images/icon6.png'
 import icon7 from  '../assets/images/icon7.png'
 import icon8 from  '../assets/images/icon8.png'
 import icon9 from  '../assets/images/icon9.png'
+import icon10 from '../assets/images/icon10.png'
 import icon11 from '../assets/images/icon11.png'
 import icon12 from '../assets/images/icon12.png'
 import icon13 from '../assets/images/icon13.png'
 import icon14 from '../assets/images/icon14.png'
 import icon15 from '../assets/images/icon15.png'
-import icon16 from '../assets/images/icon16.png'
 import iconNull from '../assets/images/iconNull.png'
+import audience from '../assets/images/audience.png'
 import explosion from '../assets/images/explosion.gif'
 
 export default {
@@ -33,14 +34,16 @@ export default {
         icon7,
         icon8,
         icon9,
+        icon10,
         icon11,
         icon12,
         icon13,
         icon14,
         icon15,
-        icon16,
+        icon15,
         iconNull,
     ],
+    audience,
     animations: {
         explosion: explosion
     }

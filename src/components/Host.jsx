@@ -123,8 +123,8 @@ export default function Host() {
                 // console.log(gameData);
                 // Lobby
                 if (!gameData.inProgress) return (
-                    <>
-                        <section className="host__section host__section--code">
+                    <div className='lobby'>
+                        <section className="lobby__section lobby__section--code">
                             <div className='start'>
                                 <h1 className='start__header'>CLOTHES COMBAT</h1>
                                 <p>Join the game on your device with code:</p>
@@ -191,158 +191,173 @@ export default function Host() {
                                 )}
                             </div>
                         </section>
-                        <section className="host__section host__section--players">
-                            {gameData.sessionId !== null ? (
-                                <>
-                                    {/* Audience */}
-                                    {/* {Object.keys(gameData.players).length === 8 && ( */}
-                                    {true && (
-                                        <div className='host__audience'>
+                        <section className="lobby__section lobby__section--players">
+                            <div className="lobby__section-container">
+                                {gameData.sessionId !== null ? (
+                                    <>
+                                        {/* Audience */}
+                                        <div className={`lobby__audience ${Object.keys(gameData.players).length !== 8 && 'lobby__audience--hidden'}`}>
                                             <p>Extra players can join the</p>
                                             <span>
                                                 <b>AUDIENCE {gameData.spectators.length}</b>
                                             </span>
                                             <p>Your votes will influence the game</p>
                                         </div>
-                                    )}
-                                    {/* player list */}
-                                    <ul className='players-list'>
-                                        {(() => {
-                                            let players = Object.values(gameData.players)
-                                            let x = players.length
-                                            players.length = 8
-                                            players.fill(null, x, 8)
-                                            return players.map((player, index) => (
-                                                <li className={`player player--${player !== null ? 'joined' : 'empty'}`} key={`player-${index}`}>
-                                                    {player !== null && (
-                                                        <div className='player__icon icon icon--small'>
-                                                                <img 
-                                                                    src={IMAGES.icons[
-                                                                        player?.icon !== null 
-                                                                            ? player.icon
-                                                                            : 16
-                                                                        ]}
-                                                                    alt="player icon"
-                                                                />
-                                                        </div>
-                                                    )}
-                                                    <p className='player__name'>
-                                                        {player !== null 
-                                                            ? player.name
-                                                            : "JOIN GAME"
-                                                        }
-                                                    </p>
-                                                </li>
-                                            ))
-                                        })()}
-                                    </ul>
-                                </>
-                            ) : (
-                                <p>generate code for players to join</p>
-                            )}
+                                        {/* player list */}
+                                        <ul className='players'>
+                                            {(() => {
+                                                let players = Object.values(gameData.players)
+                                                let x = players.length
+                                                players.length = 8
+                                                players.fill(null, x, 8)
+                                                return players.map((player, index) => (
+                                                    <li className={`player player--${player !== null ? 'joined' : 'empty'}`} key={`player-${index}`}>
+                                                        {player !== null && (
+                                                            <div className='player__icon icon icon--small'>
+                                                                    <img 
+                                                                        src={IMAGES.icons[
+                                                                            player?.icon !== null 
+                                                                                ? player.icon
+                                                                                : 16
+                                                                            ]}
+                                                                        alt="player icon"
+                                                                    />
+                                                            </div>
+                                                        )}
+                                                        <p className='player__name'>
+                                                            {player !== null 
+                                                                ? player.name
+                                                                : "JOIN GAME"
+                                                            }
+                                                        </p>
+                                                    </li>
+                                                ))
+                                            })()}
+                                        </ul>
+                                    </>
+                                ) : (
+                                    <p>generate code for players to join</p>
+                                )}
+                            </div>
                         </section>
-                    </>
+                    </div>
+                )
+                // In Game
+                return (
+                    <div className="game">
+                        <div className="game__container">
+                            <div className="game__top">
+                                <p className={`game__timer game__timer--${
+                                    timer === 0
+                                        ? 'finished'
+                                        : isPaused
+                                        ? 'paused'
+                                        : 'ongoing'
+                                }`}>{timer}</p>
+                            </div>
+                            <div className="game__bottom">
+                                <div className="game__suggestions">
+                                    <div className="game__audience audience">
+                                        <img src={IMAGES.audience} alt="audience" />
+                                        <div className="game__audience-bubble">
+                                            <p>{'audience suggestion'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                {(() => {
+                                    if (gameData.round === 4)return <Results />
+                                    switch (gameData.phase) {
+                                        case 1: 
+                                        case 2: 
+                                        case 3: 
+                                            return <AwaitingResponses gameData={gameData}/>
+                                        case 4: 
+                                            return <Voting key={gameData.round} gameData={gameData}/>
+                                    }
+                                })()}
+                            </div>
+                        </div>
+                    </div>
+                )
+                // unused leftover debug elements
+                return (
+                    <div>
+                        <p>GAME SESSION: {gameData.sessionId}</p>
+                        <button onClick={() => {
+                            if (confirm("WARNING: the current session will be ended and all data will be lost\nwould you still like to end the game?")) {
+                                fetch(`${import.meta.env.VITE_SERVER_URL}/reset`, {
+                                    method: 'PUT',
+                                    body: {
+                                        keepPlayers: false
+                                    }
+                                })
+                                    .then(res => res.json())
+                                    .then(res => {
+                                        console.log(res)
+                                    })
+                            }
+                        }}>END SESSION</button>
+                        <p>ROUND {gameData.round}</p>
+                        <p>PHASE {(() => {
+                            if (gameData.round === 4) {}
+                            switch(gameData.phase) {
+                                case 1: return 'drawing'
+                                case 2: return 'slogans'
+                                case 3: return 'combinations'
+                                case 4: return 'voting'
+                            }
+                        })()}</p>
+                        <p>LIMIT {gameData.limit}</p>
+                        
+                        <p style={{
+                            backgroundColor: 
+                                nextPhaseCooldown.current
+                                ? 'lightblue' 
+                                : 'salmon'
+                        }}>NEXT: {JSON.stringify(nextPhaseCooldown.current)}</p>
+                        <button onClick={() => setTimer(0)}>TIMEOUT</button>
+                    </div>
                 )
             })()}
         </main>
     )
+}
 
-
-    // Loading
-    // if (gameData === null) return 'loading...'
-
-    // Lobby
-    // if (!gameData.inProgress) return (
-        
-    // )
-    // In Game
+function AwaitingResponses({gameData}) {
     return (
-        <div>
-            <p>GAME SESSION: {gameData.sessionId}</p>
-            <button onClick={() => {
-                if (confirm("WARNING: the current session will be ended and all data will be lost\nwould you still like to end the game?")) {
-                    fetch(`${import.meta.env.VITE_SERVER_URL}/reset`, {
-                        method: 'PUT',
-                        body: {
-                            keepPlayers: false
+        <div className="awaiting">
+            <ul className="responses">
+                {Object.values(gameData.players).map(player => (
+                    <li 
+                        className={`response ${(gameData.responses[player.id] >= gameData.limit) ? 'response--done' : ''}`}
+                        key={`player-${player.id}`}
+                    >
+                        <img src={IMAGES.icons[player.icon]} alt="" className='icon--med'/>
+                        <p className={`response__count ${(gameData.responses[player.id] >= gameData.limit) ? 'response__count--done' : ''}`}>{gameData.responses[player.id] || 0}</p>
+                        
+                    </li>
+                ))}
+            </ul>
+        </div>
+    )
+    
+    return (
+        <>
+            <h3>Players:</h3>
+            <ul className='players'>
+                
+                {/* <button onClick={() => {
+                    fetch(`${import.meta.env.VITE_SERVER_URL}/player/${player.id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
                         }
                     })
                         .then(res => res.json())
                         .then(res => {
                             console.log(res)
                         })
-                }
-            }}>END SESSION</button>
-            <p>ROUND {gameData.round}</p>
-            <p>PHASE {(() => {
-                if (gameData.round === 4) {}
-                switch(gameData.phase) {
-                    case 1: return 'drawing'
-                    case 2: return 'slogans'
-                    case 3: return 'combinations'
-                    case 4: return 'voting'
-                }
-            })()}</p>
-            <p>LIMIT {gameData.limit}</p>
-            <p style={{
-                backgroundColor: 
-                    timer === 0 
-                    ? 'red' 
-                    : isPaused 
-                    ? 'lightblue'
-                    : 'lime'
-            }}>TIME: {timer} / {timerMax}</p>
-            <p style={{
-                backgroundColor: 
-                    nextPhaseCooldown.current
-                    ? 'lightblue' 
-                    : 'salmon'
-            }}>NEXT: {JSON.stringify(nextPhaseCooldown.current)}</p>
-            <button onClick={() => setTimer(0)}>TIMEOUT</button>
-            {(() => {
-                if (gameData.round === 4)return <Results />
-                switch (gameData.phase) {
-                    case 1: 
-                    case 2: 
-                    case 3: 
-                        return <AwaitingResponses gameData={gameData}/>
-                    case 4: 
-                        return <Voting key={gameData.round} gameData={gameData}/>
-                }
-            })()}
-        </div>
-    )
-}
-
-function AwaitingResponses({gameData}) {
-    return (
-        <>
-            <h3>Players:</h3>
-            <ul className='players'>
-                {Object.values(gameData.players).map(player => (
-                    <li 
-                        className='player'
-                        style={{backgroundColor: (gameData.responses[player.id] >= gameData.limit) && 'lime'}} 
-                        key={`player-${player.id}`}
-                    >
-                        
-                        <p>{gameData.responses[player.id] || 0}</p>
-                        <img src={IMAGES.icons[player.icon]} alt="" className='icon--small'/>
-                        <h3>{player.name} </h3>
-                        <button onClick={() => {
-                            fetch(`${import.meta.env.VITE_SERVER_URL}/player/${player.id}`, {
-                                method: 'DELETE',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                }
-                            })
-                                .then(res => res.json())
-                                .then(res => {
-                                    console.log(res)
-                                })
-                        }}>Remove</button>
-                    </li>
-                ))}
+                }}>Remove</button> */}
             </ul>
         </>
     )

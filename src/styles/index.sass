@@ -17,19 +17,19 @@ html
     // overflow: hidden    //TODO create frame for animations to prevent overflow when elements go out of bounds. for now this can be toggled when needed for testing
     
     // DEBUG: just here to show the breakpoints in the preview
-    &::before
-        position: absolute
-        font-size: 3em
-        @include xs
-            content: "xs"
-        @include sm
-            content: "sm"
-        @include md
-            content: "md"
-        @include lg
-            content: "lg"
-        @include xl
-            content: "xl"
+    // &::before
+    //     position: absolute
+    //     font-size: 3em
+    //     @include xs
+    //         content: "xs"
+    //     @include sm
+    //         content: "sm"
+    //     @include md
+    //         content: "md"
+    //     @include lg
+    //         content: "lg"
+    //     @include xl
+    //         content: "xl"
 main
     width: 100vw
     height: 100vh
@@ -53,47 +53,66 @@ label
 // LEFT OFF doing proper markup and styles for session layouts
 
 // .container
+//     @include debug(navy)
 //     width: 80%
-//     min-width: 1100px
+//     max-width: 1100px
 //     margin: auto
-//     border: 2px solid navy
-//     background: lightblue
-    // padding: 1em
+//     padding: 1em
 
+// Universal
 .icon
     display: flex
     align-items: center
     img
-        // border: 1px solid red
+        // @include debug(red)
     &--xsmall
         width: 2em
     &--small
         width: 3.2em
     &--med
-        width: 5.5em
+        width: 3.5em
+        @include md
+            width: 5.5em
 
+// Host
 .host
-    // border: 1px solid red
+// Host > Lobby
+.lobby
+    // @include debug(red)
     display: flex
+    height: 100vh
     flex-direction: column
     // @include md
     //     flex-direction: row
     &__section
         height: 100%
         width: 100%
-        border: 2px solid black
-        padding: 0.6em
+        // @include debug(black)
+        padding: 0.8em
         &--code
             position: relative  // positions &__start
         &--players
             background: teal
             max-height: 50%
-            color: white
+            // @include debug(cyan)
+    &__section-container
+        max-width: 950px
+        height: 100%
+        margin: auto
+        @include debug(cyan)
+        display: flex
+        flex-direction: column
+        justify-content: space-between
+        color: white
     &__audience
+        @include debug(magenta)
         text-align: center
+        padding: 1em
+        &--hidden
+            opacity: 0
 .start
     @include center
-    border: 1px solid blue
+    // @include debug(blue)
     min-width: 350px
     padding: 1em
     text-align: center
@@ -108,16 +127,15 @@ label
         margin: auto
     &__btn
         margin: 0.2em
-.players-list
-    // border: 1px solid lime
-    // border: 2px inset teal
-    max-height: 15em
+.players
+    @include debug(lime)
     overflow: scroll
     display: grid
     grid-template-columns: 1fr
     gap: 0.4em
     @include md
         grid-template-columns: 2fr 2fr
+        overflow: initial
 .player
     border: 4px solid black
     border-radius: 5px
@@ -130,23 +148,107 @@ label
     align-items: center
     justify-content: space-between
     &__name
-        // border: 1px solid yellow
+        // @include debug(yellow)
         text-align: center
         font-size: 1.1em
         width: 100%
         margin-left: 0.1em
     &__icon
-        // border: 1px solid cyan
+        // @include debug(cyan)
     &--joined
         background-color: white
-    &--empty
-        
+    &--empty    
 .options
     border: 1px solid magenta
 
+// Host > Game
+.game
+    &__container
+        // @include debug(magenta)
+        // @include center
+        height: 100vh
+        display: flex
+        flex-direction: column
+        justify-content: space-between
+        padding: 1em
+    &__top
+        // @include debug(blue)
+    &__bottom
+        // @include debug(red)
+        // background: teal
+        color: white
+    &__timer
+        width: fit-content
+        font-size: 2rem
+        font-weight: bold
+        border: 4px solid black
+        border-radius: 50px
+        padding: 0.5em
+        &--ongoing
+            background-color: lightblue
+        &--paused
+            background-color: plum
+        &--finished
+            background-color: salmon
+    &__suggestions
+        // @include debug(cyan)
+    &__audience
+        // @include debug(gold)
+        margin: auto
+        position: relative
+        padding: 0.5em
+    &__audience-bubble
+        background: white
+        color: black
+        border: 2px solid black
+        border-radius: 15px
+        padding: 0.5em
+        width: fit-content
+        @include adjacent-left
+        
+.awaiting
+.responses
+    // @include debug(lime)
+    max-width: 700px
+    margin: auto
+    display: flex
+    flex-wrap: wrap
+    justify-content: space-around
+.response      
+    @include debug(blue)
+    width: fit-content
+    padding: 1em
+    border-radius: 8px
+    background: lightyellow
+    position: relative
+    margin: 0.5em
+    &--done
+        background: salmon
+    &__count
+        color: black
+        font-size: 1.2rem
+        font-weight: bold
+        background-color: lightblue
+        border: 3px solid black
+        border-radius: 50px
+        padding: 0.4em
+        width: fit-content
+        text-align: center
+        min-width: 45px
+        min-height: 45px
+        position: absolute
+        top: -10%
+        left: -10%
+        &--done
+            background-color: salmon
 
-         
-
+.audience
+    width: fit-content
+    display: flex
+    flex-direction: column
+    img
+        // @include debug(pink)
+        max-width: 250px
     
 
 .flex

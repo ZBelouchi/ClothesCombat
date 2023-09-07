@@ -4,19 +4,31 @@
     left: 50%; 
     translate: -50% -50%;
 }
-// TODO: maybe make a separate functions folder
-@function number($string) {
-    // Matrices
-    $strings: '0' '1' '2' '3' '4' '5' '6' '7' '8' '9';
-    $numbers: 0 1 2 3 4 5 6 7 8 9;
-  
-    // Result
-    $result: 0;
-  
-    // Looping through all characters
-    @for $i from 1 through str-length($string) {
-      // Do magic
-    }
-  
-    @return $result;
-  }
+@mixin adjacent-above {
+    position: absolute;
+    top: 0;  
+    left: 50%; 
+    translate: -50% -100%;
+}
+@mixin adjacent-below {
+    position: absolute;
+    top: 100%;  
+    left: 50%; 
+    translate: -50% 0;
+}
+@mixin adjacent-left {
+    position: absolute;
+    top: 50%;  
+    left: 0; 
+    translate: -100% -50%;
+}
+@mixin adjacent-right {
+    position: absolute;
+    top: 50%;  
+    left: 100%; 
+    transform: translate(0, -50%);
+}
+
+@mixin debug($color) {
+	border: 2px solid $color;
+}
